@@ -30,12 +30,11 @@
 
 #include "PlayerMaster.h"
 #include "MasterMixer.h"
-//#include "SimpleVector.h"
 #include "PlayerController.h"
-#include "PlayerCriticalSection.h"
+#include "tracker/PlayerCriticalSection.h"
 #include "AudioDriverManager.h"
 #include "PlayerSTD.h"
-#include "ResamplerHelper.h"
+#include "tracker/ResamplerHelper.h"
 
 class MasterMixerNotificationListener : public MasterMixer::MasterMixerNotificationListener
 {
