@@ -196,6 +196,7 @@ mp_sint32 MasterMixer::resume()
 
 mp_sint32 MasterMixer::setBufferSize(mp_uint32 bufferSize)
 {
+	printf("%s\nSet buffer size: %ld\n", __PRETTY_FUNCTION__, bufferSize);
 	if (bufferSize != this->bufferSize)
 	{		
 		mp_sint32 res = closeAudioDevice();
@@ -377,11 +378,23 @@ bool MasterMixer::isDevicePaused(Mixable* device)
 	return false;
 }
 
-void MasterMixer::mixerHandler(mp_sword* buffer)
+void MasterMixer::mixerHandler(mp_sword* buffer, mp_uint32 numChannels /* = 0 */, mp_sword** buffers /* = 0 */)
 {
-	if (!disableMixing)
-		prepareBuffer();
-	
+	bool doMix = numChannels == 0;
+	mp_sword * bufferPtrs[MAX_DIRECTOUT_CHANNELS] = { 0 };
+
+	// Prepare the mix buffer(s)
+	if (!disableMixing) {
+		if(doMix) {
+			prepareBuffer();
+		} else {
+			for(int i = 0; i < numChannels; i++) {
+				bufferPtrs[i] = buffers[i];
+				memset(bufferPtrs[i], 0, bufferSize * sizeof(mp_sword));
+			}
+		}
+	}
+
 	const mp_sint32 numDevices = this->numDevices;
 	const mp_uint32 bufferSize = this->bufferSize;
 	mp_sint32* mixBuffer = this->buffer;
@@ -401,11 +414,11 @@ void MasterMixer::mixerHandler(mp_sword* buffer)
 		}
 		else if (device->mixable && !device->paused)
 		{
-			device->mixable->mix(mixBuffer, bufferSize);
+			device->mixable->mix(mixBuffer, bufferSize, numChannels, bufferPtrs);
 		}
 	}
-	
-	if (!disableMixing)
+
+	if (doMix && !disableMixing)
 		swapOutBuffer(buffer);
 }
 
