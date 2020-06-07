@@ -2,6 +2,7 @@ project(MilkyPlayer C CXX ASM)
 
 set(SOURCES
 		main.cpp
+		borrowed-code/AslRequester.cpp
 		borrowed-code/PlayerMaster.cpp
 		borrowed-code/PlayerController.cpp
 		../tracker/ResamplerHelper.cpp
@@ -10,6 +11,7 @@ set(SOURCES
 set(HEADERS
 		amigaversion.h
 		project.h
+		borrowed-code/AslRequester.h
 		borrowed-code/PlayerMaster.h
 		borrowed-code/PlayerController.h
 		borrowed-code/BasicTypes.h
