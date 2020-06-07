@@ -1,11 +1,4 @@
-#define MILKYTRACKER 1
-#include <SDL.h>
-#include <XModule.h>
-
 #include "project.h"
-#include "amigaversion.h"
-#include "PlayerMaster.h"
-#include "PlayerController.h"
 
 #ifdef __AMIGA__
 struct IntuitionBase *IntuitionBase;
@@ -13,10 +6,16 @@ struct GfxBase *GfxBase;
 struct Library *MUIMasterBase;
 #endif
 
+enum {
+	BTN_OPEN = 55,
+	BTN_PLAY = 56,
+	BTN_STOP = 57
+};
+
 int main(int argc,char *argv[])
 {
 #ifdef __AMIGA__
-	Object *app,*win1, *rootObj;
+	Object *app, *win1, *rootObj, *btnOpen, *btnPlay, *btnStop;
 	ULONG signals;
 #endif
 	BOOL running = TRUE;
@@ -29,11 +28,13 @@ int main(int argc,char *argv[])
 	
 #ifdef __AMIGA__
 	rootObj = MUI_NewObject(MUIC_Group,
-		MUIA_Group_Child, (ULONG)(MUI_NewObject(MUIC_Text,
-			MUIA_Text_Contents, (ULONG)"MilkyPlayer",
-			TAG_END)),
-		MUIA_Group_Child, (ULONG)(MUI_NewObject(MUIC_Framedisplay,
-			MUIA_FrameTitle, (ULONG)"MilkyPlayer",
+		Child, (ULONG)(MUI_MakeObject(MUIO_Label,(ULONG)"MilkyPlayer",TAG_END)),
+		Child, (ULONG)(MUI_MakeObject(MUIO_HBar,4,TAG_END)),
+		Child, (ULONG)(MUI_NewObject(MUIC_Group,
+			MUIA_Group_Horiz, TRUE,
+				Child, (ULONG)(btnOpen = MUI_MakeObject(MUIO_Button, (ULONG)"_Open", TAG_END)),
+				Child, (ULONG)(btnPlay = MUI_MakeObject(MUIO_Button, (ULONG)"_Play", TAG_END)),
+				Child, (ULONG)(btnStop = MUI_MakeObject(MUIO_Button, (ULONG)"_Stop", TAG_END)),
 			TAG_END)),
 		TAG_END);
 	
@@ -74,22 +75,28 @@ int main(int argc,char *argv[])
 	muteChannels[0] = muteChannels[1] = muteChannels[2] = muteChannels[3] = false;
 
 	Printf("Controller acquired\n");
-	
+	/*
 	module->loadModule("test.mod");
-	while (!module->isModuleLoaded()) {
-		Printf("test2\n");
-	}
+	*/
 	
-	controller->attachModuleEditor(module);
+	/*
 	controller->playSong(0,0, muteChannels);
-	controller->continuePlaying();
 	controller->resumePlayer(true);
+	*/	
 #ifdef __AMIGA__
+	
 	DoMethod(win1, MUIM_Notify, MUIA_Window_CloseRequest, TRUE,
 			 app, 2, MUIM_Application_ReturnID, MUIV_Application_ReturnID_Quit);
+	DoMethod(btnOpen, MUIM_Notify, MUIA_Pressed, FALSE,
+			 app, 2, MUIM_Application_ReturnID, BTN_OPEN);
+	DoMethod(btnPlay, MUIM_Notify, MUIA_Pressed, FALSE,
+			 app, 2, MUIM_Application_ReturnID, BTN_PLAY);
+	DoMethod(btnStop, MUIM_Notify, MUIA_Pressed, FALSE,
+			 app, 2, MUIM_Application_ReturnID, BTN_STOP);
 
 	SetAttrs(win1, MUIA_Window_Open, TRUE, TAG_DONE);
-
+	const char* file;
+	bool play = false;
 	while(running)
 	{
 		ULONG id = DoMethod(app,MUIM_Application_Input,&signals);
@@ -97,12 +104,41 @@ int main(int argc,char *argv[])
 		switch(id)
 		{
 			case MUIV_Application_ReturnID_Quit:
-
-
 				if((MUI_RequestA(app,0,0,"Quit?","_Yes|_No","\33cAre you sure?",0)) == 1)
 					running = FALSE;
 				break;
+			case BTN_OPEN:
+				play = false;
+				controller->stop();
+				file = GetFileName("Load mod");
+				
+				Printf("Loading file %s\n",(ULONG)file);
+				module->loadModule(file);
+				controller->attachModuleEditor(module);
+
+				play = true;
+				break;
+			case BTN_PLAY:
+				play = true;
+				if (module->isModuleLoaded()) {
+					controller->playSong(0,0, muteChannels);
+					controller->restartPlaying();
+					controller->resumePlayer(true);
+				}
+
+				break;
+			case BTN_STOP:
+				play = false;
+				controller->stop();
+				break;
 		}
+		
+		if (module->isModuleLoaded() && !controller->isPlaying() && play) {
+			controller->playSong(0,0, muteChannels);
+			controller->resumePlayer(true);
+		}
+		
+			
 		if(running && signals) Wait(signals);
 	}
 
