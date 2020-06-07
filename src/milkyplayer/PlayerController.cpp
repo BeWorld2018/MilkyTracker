@@ -28,7 +28,7 @@
  *
  */
 
-#include <clib/dos_protos.h>
+#include "project.h"
 #include "PlayerController.h"
 #include "PlayerMaster.h"
 #include "MilkyPlay.h"
@@ -290,10 +290,10 @@ PlayerController::PlayerController(MasterMixer* mixer, bool fakeScopes) :
 	lastPosition(-1), lastRow(-1),
 	suspended(false),
 	firstRecordChannelCall(true),
-	//numPlayerChannels(TrackerConfig::numPlayerChannels),
-	//numVirtualChannels(TrackerConfig::numVirtualChannels),
-	//totalPlayerChannels(numPlayerChannels + numVirtualChannels + 2),
-	//useVirtualChannels(TrackerConfig::useVirtualChannels),
+	numPlayerChannels(32),
+	numVirtualChannels(0),
+	totalPlayerChannels(numPlayerChannels + numVirtualChannels + 2),
+	useVirtualChannels(false),
 	multiChannelKeyJazz(true),
 	multiChannelRecord(true),
 	mixerDataCacheSize(fakeScopes ? 0 : 512*2),
@@ -353,20 +353,20 @@ PlayerController::~PlayerController()
 
 void PlayerController::attachModuleEditor(XModule* module)
 {
-	Printf("hi1\n");
+	printf("hi1\n");
 	//this->moduleEditor = moduleEditor;
 	this->module = module; //moduleEditor->getModule();
-	Printf("hi2\n");
+	printf("hi2\n");
 	if (!player)
 		return;
-	Printf("hi3\n");
+	printf("hi3\n");
 	if (!mixer->isDeviceRemoved(player))
 		mixer->removeDevice(player);
-	Printf("hi4\n");
-	ASSERT(sizeof(muteChannels)/sizeof(bool) >= (unsigned)totalPlayerChannels);
-	Printf("hi5 %d %d\n",sizeof(muteChannels)/sizeof(bool),totalPlayerChannels);
+	printf("hi4\n");
+//	ASSERT(sizeof(muteChannels)/sizeof(bool) >= (unsigned)totalPlayerChannels);
+	printf("hi5 %d %d\n",sizeof(muteChannels)/sizeof(bool),totalPlayerChannels);
 	player->startPlaying(module, true, 0, 0, totalPlayerChannels, panning, true);
-	Printf("hi6 %d\n", numPlayerChannels);
+	printf("hi6 %d\n", numPlayerChannels);
 
 	// restore muting
 	for (mp_sint32 i = 0; i < numPlayerChannels; i++)

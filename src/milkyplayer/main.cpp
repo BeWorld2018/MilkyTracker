@@ -1,35 +1,33 @@
+#define MILKYTRACKER 1
+#include <SDL.h>
+#include <XModule.h>
+
 #include "project.h"
 #include "amigaversion.h"
 #include "PlayerMaster.h"
 #include "PlayerController.h"
 
-#include <libraries/mui.h>
-#include <proto/muimaster_lib.h>
-
-#include <exec/types.h>
-#include <utility/tagitem.h>
-#include <proto/exec.h>
-#include <proto/intuition.h>
-#include <clib/alib_protos.h>
-#include <stdlib.h>
-#include <stdio.h>
-#define MILKYTRACKER 1
-#include <MilkyPlay.h>
-#include <XModule.h>
-#include <SDL.h>
+#ifdef __AMIGA__
+struct IntuitionBase *IntuitionBase;
+struct GfxBase *GfxBase;
+struct Library *MUIMasterBase;
+#endif
 
 int main(int argc,char *argv[])
 {
+#ifdef __AMIGA__
 	Object *app,*win1, *rootObj;
 	ULONG signals;
+#endif
 	BOOL running = TRUE;
-
+	
 	if (!Open_Libs())
 	{
-		printf("Cannot open libs\n");
+		Printf("Cannot open libs\n");
 		return(0);
 	}
-
+	
+#ifdef __AMIGA__
 	rootObj = MUI_NewObject(MUIC_Group,
 		MUIA_Group_Child, (ULONG)(MUI_NewObject(MUIC_Text,
 			MUIA_Text_Contents, (ULONG)"MilkyPlayer",
@@ -60,6 +58,8 @@ int main(int argc,char *argv[])
 		printf("Cannot create application.\n");
 		return(0);
 	}
+#endif
+	
 	SDL_Init( SDL_INIT_EVERYTHING);
 	atexit(SDL_Quit);
 
@@ -68,21 +68,23 @@ int main(int argc,char *argv[])
 	Printf("Driver: %s\n", (ULONG)master->getCurrentDriverName());
 	master->setCurrentDriverByName(master->getFirstDriverName());
 	Printf("Driver: %s\n", (ULONG)master->getCurrentDriverName());
+	//master->reallocateChannels(32, 0);
 	PlayerController *controller = master->createPlayerController(true);
+	bool* muteChannels = new bool[34];
+	muteChannels[0] = muteChannels[1] = muteChannels[2] = muteChannels[3] = false;
+
+	Printf("Controller acquired\n");
 	
 	module->loadModule("test.mod");
-	//while (!module->isModuleLoaded())
-	//	Printf("test2\n");
+	while (!module->isModuleLoaded()) {
+		Printf("test2\n");
+	}
 	
 	controller->attachModuleEditor(module);
-
-	Printf("test3\n");
-	controller->playSong(0,0,0);
-
-	Printf("test4\n");
+	controller->playSong(0,0, muteChannels);
 	controller->continuePlaying();
 	controller->resumePlayer(true);
-	
+#ifdef __AMIGA__
 	DoMethod(win1, MUIM_Notify, MUIA_Window_CloseRequest, TRUE,
 			 app, 2, MUIM_Application_ReturnID, MUIV_Application_ReturnID_Quit);
 
@@ -95,10 +97,8 @@ int main(int argc,char *argv[])
 		switch(id)
 		{
 			case MUIV_Application_ReturnID_Quit:
-				module->loadModule("test.mod");
-				controller->playSong(0,0,0);
-				controller->continuePlaying();
-				controller->resumePlayer(true);
+
+
 				if((MUI_RequestA(app,0,0,"Quit?","_Yes|_No","\33cAre you sure?",0)) == 1)
 					running = FALSE;
 				break;
@@ -109,7 +109,47 @@ int main(int argc,char *argv[])
 	SetAttrs(win1,MUIA_Window_Open,FALSE);
 
 	if(app) MUI_DisposeObject(app);
+#else
+	while (controller->isPlaying());
+#endif
 	delete master;
 	Close_Libs();
 	exit(EXIT_SUCCESS);
+}
+
+BOOL Open_Libs()
+{
+#ifdef __AMIGA__
+	if ( !(IntuitionBase=(struct IntuitionBase *) OpenLibrary("intuition.library",39)) )
+		return(FALSE);
+
+	if ( !(GfxBase=(struct GfxBase *) OpenLibrary("graphics.library",0)) )
+	{
+		CloseLibrary((struct Library *)IntuitionBase);
+		return(FALSE);
+	}
+
+	if ( !(MUIMasterBase=OpenLibrary(MUIMASTER_NAME,19)) )
+	{
+		CloseLibrary((struct Library *)GfxBase);
+		CloseLibrary((struct Library *)IntuitionBase);
+		return(FALSE);
+	}
+#endif
+
+	return(TRUE);
+}
+
+void Close_Libs()
+{
+#ifdef __AMIGA__
+if (IntuitionBase)
+		CloseLibrary((struct Library *)IntuitionBase);
+
+	if (GfxBase)
+		CloseLibrary((struct Library *)GfxBase);
+
+	if (MUIMasterBase)
+		CloseLibrary(MUIMasterBase);
+#endif
 }

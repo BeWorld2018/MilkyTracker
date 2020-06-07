@@ -1,51 +1,42 @@
+#ifndef MILKYPLAYER_PROJECT_H
+#define MILKYPLAYER_PROJECT_H 1
+
+#ifdef __AMIGA__
 #include <libraries/mui.h>
+#include <libraries/gadtools.h>
+#include <libraries/iffparse.h>
+
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/muimaster_lib.h>
-#include <libraries/gadtools.h>
-#include <libraries/iffparse.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <proto/exec.h>
 #include <proto/intuition.h>
 #include <proto/graphics.h>
 
+#include <clib/alib_protos.h>
+//#include <exec/types.h>
+#include <utility/tagitem.h>
+//#define printf(x) Printf
+#else
+#define BOOL bool
+#define TRUE true
+#define FALSE false
+#define ULONG unsigned long
+#define Printf printf
+#endif
+
+//#include <stdio.h>
+//#include <stdlib.h>
+
+#ifdef __AMIGA__
 #define MAKE_ID(a,b,c,d) ((ULONG) (a)<<24 | (ULONG) (b)<<16 | (ULONG) (c)<<8 | (ULONG) (d))
 
 #define IPTR ULONG
 
-struct IntuitionBase *IntuitionBase;
-struct GfxBase *GfxBase;
-struct Library *MUIMasterBase;
+#endif
 
-BOOL Open_Libs(void)
-{
-	if ( !(IntuitionBase=(struct IntuitionBase *) OpenLibrary("intuition.library",39)) )
-		return(0);
+BOOL Open_Libs();
 
-	if ( !(GfxBase=(struct GfxBase *) OpenLibrary("graphics.library",0)) )
-	{
-		CloseLibrary((struct Library *)IntuitionBase);
-		return(0);
-	}
+void Close_Libs();
 
-	if ( !(MUIMasterBase=OpenLibrary(MUIMASTER_NAME,19)) )
-	{
-		CloseLibrary((struct Library *)GfxBase);
-		CloseLibrary((struct Library *)IntuitionBase);
-		return(0);
-	}
-
-	return(1);
-}
-
-void Close_Libs(void)
-{
-	if (IntuitionBase)
-		CloseLibrary((struct Library *)IntuitionBase);
-
-	if (GfxBase)
-		CloseLibrary((struct Library *)GfxBase);
-
-	if (MUIMasterBase)
-		CloseLibrary(MUIMasterBase);
-}
+#endif // MILKYPLAYER_PROJECT_H
