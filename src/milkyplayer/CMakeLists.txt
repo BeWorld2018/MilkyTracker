@@ -2,20 +2,20 @@ project(MilkyPlayer C CXX ASM)
 
 set(SOURCES
 		main.cpp
-		PlayerMaster.cpp
-		PlayerController.cpp
-		#PlayerLogic.cpp
-		ResamplerHelper.cpp
+		borrowed-code/PlayerMaster.cpp
+		borrowed-code/PlayerController.cpp
+		../tracker/ResamplerHelper.cpp
 		)
 
 set(HEADERS
-		PlayerMaster.h
-		PlayerController.h
-		#PlayerLogic.h
-		ResamplerHelper.h
 		amigaversion.h
 		project.h
-		BasicTypes.h)
+		borrowed-code/PlayerMaster.h
+		borrowed-code/PlayerController.h
+		borrowed-code/BasicTypes.h
+		../tracker/ResamplerHelper.h
+		../tracker/PlayerCriticalSection.h
+		)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
@@ -24,6 +24,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
 		PRIVATE
 		${PROJECT_SOURCE_DIR}
+		${PROJECT_SOURCE_DIR}/borrowed-code
+		${PROJECT_SOURCE_DIR}/..
 		# Include the CMake-generated version header from the build directory
 		${PROJECT_BINARY_DIR}
 		${SDL_INCLUDE_DIR}

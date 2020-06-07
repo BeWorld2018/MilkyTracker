@@ -28,14 +28,11 @@
  *
  */
 
-#include "project.h"
 #include "PlayerController.h"
 #include "PlayerMaster.h"
 #include "MilkyPlay.h"
 #include "ResamplerMacros.h"
-//#include "PPSystem.h"
-#include "PlayerCriticalSection.h"
-//#include "ModuleEditor.h"
+#include "tracker/PlayerCriticalSection.h"
 
 class PlayerStatusTracker : public PlayerSTD::StatusEventListener
 {
