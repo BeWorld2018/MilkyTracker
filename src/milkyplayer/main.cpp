@@ -66,23 +66,15 @@ int main(int argc,char *argv[])
 
 	XModule *module = new XModule();
 	PlayerMaster *master = new PlayerMaster();
-	Printf("Driver: %s\n", (ULONG)master->getCurrentDriverName());
+	
+	//Printf("Driver: %s\n", (ULONG)master->getCurrentDriverName());
 	master->setCurrentDriverByName(master->getFirstDriverName());
 	Printf("Driver: %s\n", (ULONG)master->getCurrentDriverName());
-	//master->reallocateChannels(32, 0);
+	
 	PlayerController *controller = master->createPlayerController(true);
 	bool* muteChannels = new bool[34];
-	muteChannels[0] = muteChannels[1] = muteChannels[2] = muteChannels[3] = false;
-
-	Printf("Controller acquired\n");
-	/*
-	module->loadModule("test.mod");
-	*/
+	muteChannels[0] = muteChannels[1] = muteChannels[2] = muteChannels[3] = FALSE;
 	
-	/*
-	controller->playSong(0,0, muteChannels);
-	controller->resumePlayer(true);
-	*/	
 #ifdef __AMIGA__
 	
 	DoMethod(win1, MUIM_Notify, MUIA_Window_CloseRequest, TRUE,
@@ -121,7 +113,7 @@ int main(int argc,char *argv[])
 			case BTN_PLAY:
 				play = true;
 				if (module->isModuleLoaded()) {
-					controller->playSong(0,0, muteChannels);
+					//controller->playSong(0,0, muteChannels);
 					controller->restartPlaying();
 					controller->resumePlayer(true);
 				}
