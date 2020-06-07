@@ -257,6 +257,7 @@ PlayerController* PlayerMaster::getPlayerController(pp_int32 index)
 
 bool PlayerMaster::setCurrentDriverByName(const char* name)
 {
+	currentSettings.setAudioDriverName(name);
 	mixer->setCurrentAudioDriverByName(name);
 	return mixer->start() >= 0;
 }
