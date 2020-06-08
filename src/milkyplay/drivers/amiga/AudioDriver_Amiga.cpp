@@ -13,13 +13,6 @@ getVerticalBeamPosition() {
     return ((struct vpos*) 0xdff004)->vpos;
 }
 
-// @todo Find out why exactly this is working. Fucking meta-programming.
-static mp_sint32
-bufferAudioService(register AudioDriver_Amiga<void> * that __asm("a1"))
-{
-    return that->bufferAudio();
-}
-
 static void
 playAudioService(register AudioDriver_Amiga<void> * that __asm("a1"))
 {
@@ -30,10 +23,15 @@ playAudioService(register AudioDriver_Amiga<void> * that __asm("a1"))
 
 template<typename SampleType>
 AudioDriver_Amiga<SampleType>::AudioDriver_Amiga()
-: AudioDriverBase()
+: AudioDriverInterface_Amiga()
+, irqEnabled(false)
 , irqAudioOld(NULL)
 , allocated(false)
+#if defined(AMIGA_DIRECTOUT)
 , outputMode(DirectOut)
+#else
+, outputMode(Mix)
+#endif
 , statVerticalBlankMixMedian(0)
 , statAudioBufferReset(0)
 , statAudioBufferResetMedian(0)
@@ -41,19 +39,12 @@ AudioDriver_Amiga<SampleType>::AudioDriver_Amiga()
 , statRingBufferFullMedian(0)
 , statCountPerSecond(0)
 {
-    irqPlayAudio = (struct Interrupt *) AllocMem(sizeof(struct Interrupt), MEMF_PUBLIC | MEMF_CLEAR);
-    irqBufferAudio = (struct Interrupt *) AllocMem(sizeof(struct Interrupt), MEMF_PUBLIC | MEMF_CLEAR);
 }
 
 template<typename SampleType>
 AudioDriver_Amiga<SampleType>::~AudioDriver_Amiga()
 {
-    dealloc();
-
-    FreeMem(irqBufferAudio, sizeof(struct Interrupt));
-    FreeMem(irqPlayAudio, sizeof(struct Interrupt));
 }
-
 
 template<typename SampleType>
 mp_sint32
@@ -63,21 +54,12 @@ AudioDriver_Amiga<SampleType>::initDevice(mp_sint32 bufferSizeInWords, mp_uint32
 	if (res < 0)
 		return res;
 
-    //            _IEDRAAAABVCPSDT
-    // INTENA 60c2 110000011000010
     //            _BB__BDBCBSDAAAA
     // DMACON 23f0 010001111110000
-
-    intenaOld = custom.intenar;
     dmaconOld = custom.dmaconr;
 
-    // Create interrupt for buffering
-    irqBufferAudio->is_Node.ln_Type = NT_INTERRUPT;
-    irqBufferAudio->is_Node.ln_Name = (char *) "mt-saga-buf-irq";
-    irqBufferAudio->is_Data = this;
-    irqBufferAudio->is_Code = (void(*)()) bufferAudioService;
-
     // Create interrupt for playback
+    irqPlayAudio = (struct Interrupt *) AllocMem(sizeof(struct Interrupt), MEMF_PUBLIC | MEMF_CLEAR);
     irqPlayAudio->is_Node.ln_Type = NT_INTERRUPT;
     irqPlayAudio->is_Node.ln_Name = (char *) "mt-saga-play-irq";
     irqPlayAudio->is_Data = this;
@@ -191,6 +173,8 @@ AudioDriver_Amiga<SampleType>::dealloc()
         FreeMem(samplesRight, ringSize * sampleSize);
         FreeMem(samplesLeft, ringSize * sampleSize);
 
+        FreeMem(samplesFetched, fetchSize << 2);
+
         break;
     default:
     case DirectOut:
@@ -206,8 +190,6 @@ AudioDriver_Amiga<SampleType>::dealloc()
 
         break;
     }
-
-    FreeMem(samplesFetched, fetchSize << 2);
 }
 
 template<typename SampleType>
@@ -219,9 +201,13 @@ AudioDriver_Amiga<SampleType>::closeDevice()
 #endif
     setGlobalVolume(0);
     disableDMA();
+    disableIRQ();
 
-    custom.intenar = intenaOld;
-    custom.dmaconr = dmaconOld;
+    custom.dmacon = DMAF_SETCLR | dmaconOld;
+
+    dealloc();
+
+    FreeMem(irqPlayAudio, sizeof(struct Interrupt));
 
 	return MP_OK;
 }
@@ -230,7 +216,7 @@ template<typename SampleType>
 void
 AudioDriver_Amiga<SampleType>::playAudio()
 {
-    this->playAudioImpl();
+    playAudioImpl();
 
     idxRead += chunkSize;
     if(idxRead >= ringSize)
@@ -287,10 +273,10 @@ AudioDriver_Amiga<SampleType>::disableIRQ()
 {
     custom.intena = INTF_AUD0;
 
-    if(irqAudioOld != NULL) {
-        RemIntServer(INTB_VERTB, irqBufferAudio);
+    if(irqEnabled) {
         SetIntVector(INTB_AUD0, irqAudioOld);
         irqAudioOld = NULL;
+        irqEnabled = false;
     }
 }
 
@@ -298,9 +284,9 @@ template<typename SampleType>
 void
 AudioDriver_Amiga<SampleType>::enableIRQ()
 {
-    if(irqAudioOld == NULL) {
+    if(!irqEnabled) {
         irqAudioOld = SetIntVector(INTB_AUD0, irqPlayAudio);
-        AddIntServer(INTB_VERTB, irqBufferAudio);
+        irqEnabled = true;
     }
 
     custom.intena = INTF_SETCLR | INTF_AUD0;
@@ -319,6 +305,8 @@ AudioDriver_Amiga<SampleType>::start()
 
 	return MP_OK;
 }
+
+extern "C" void usleep(unsigned long microseconds);
 
 template<typename SampleType>
 mp_sint32
