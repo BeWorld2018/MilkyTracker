@@ -8,6 +8,9 @@ Release/
 resources/pictures/docicons/osx/MilkyTracker-*.icns
 resources/pictures/docicons/osx/docerator/
 
+# Editor config files
+.vscode/
+
 # Don't include objects
 *.o
 .deps
