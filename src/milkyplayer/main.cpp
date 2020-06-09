@@ -136,10 +136,16 @@ int main(int argc,char *argv[])
 
 	SetAttrs(win1,MUIA_Window_Open,FALSE);
 
+	if(btnStop) MUI_DisposeObject(btnStop);
+	if(btnPlay) MUI_DisposeObject(btnPlay);
+	if(btnOpen) MUI_DisposeObject(btnOpen);
+	if(rootObj) MUI_DisposeObject(rootObj);
+	if(win1) MUI_DisposeObject(win1);
 	if(app) MUI_DisposeObject(app);
 #else
 	while (controller->isPlaying());
 #endif
+	delete module;
 	delete master;
 	Close_Libs();
 	exit(EXIT_SUCCESS);
