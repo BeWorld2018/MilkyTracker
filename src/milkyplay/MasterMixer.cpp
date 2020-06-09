@@ -104,7 +104,8 @@ mp_sint32 MasterMixer::openAudioDevice()
 	if (res < 0)
 		return res;
 
-	if (res > 0)
+	// Only notify if the buffer size really changed
+	if (res > 0 && res != bufferSize)
 	{
 		// if the result is positive it reflects the number of 16 bit words
 		// in the obtained buffer => divide by MP_NUMCHANNELS is the correct buffer size
@@ -196,7 +197,6 @@ mp_sint32 MasterMixer::resume()
 
 mp_sint32 MasterMixer::setBufferSize(mp_uint32 bufferSize)
 {
-	printf("%s\nSet buffer size: %ld\n", __PRETTY_FUNCTION__, bufferSize);
 	if (bufferSize != this->bufferSize)
 	{		
 		mp_sint32 res = closeAudioDevice();

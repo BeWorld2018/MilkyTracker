@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DEBUG_DRIVER            1
+//#define DEBUG_DRIVER            1
 
 #define CIAAPRA                 0xbfe001
 
@@ -35,8 +35,14 @@
 #define SCANLINES               312
 #define REFRESHRATE				50
 
+class AudioDriverInterface_Amiga : public AudioDriverBase
+{
+public:
+	virtual mp_sint32  	bufferAudio();
+};
+
 template<typename SampleType>
-class AudioDriver_Amiga : public AudioDriverBase
+class AudioDriver_Amiga : public AudioDriverInterface_Amiga
 {
 protected:
 	enum OutputMode {
@@ -46,6 +52,7 @@ protected:
 	};
 
 	bool                allocated;
+	bool                irqEnabled;
 
 	OutputMode          outputMode;
 
@@ -72,7 +79,6 @@ protected:
 
 	struct Interrupt *	irqPlayAudio;
 	struct Interrupt *	irqAudioOld;
-	struct Interrupt *	irqBufferAudio;
 
 	virtual mp_sint32	alloc(mp_sint32 bufferSize);
 	virtual void 		dealloc();
@@ -110,7 +116,7 @@ protected:
 
 public:
 	void 				playAudio();
-	mp_sint32  			bufferAudio();
+	virtual mp_sint32  	bufferAudio();
 };
 
 #endif
