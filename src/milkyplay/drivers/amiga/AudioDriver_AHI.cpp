@@ -36,11 +36,11 @@
 #include "AudioDriver_AHI.h"
 
 /* Audio driver functions */
-static int AHI_OpenAudio(_THIS, SDL_AudioSpec *spec);
-static void AHI_WaitAudio(_THIS);
-static void AHI_PlayAudio(_THIS);
-static Uint8 *AHI_GetAudioBuf(_THIS);
-static void AHI_CloseAudio(_THIS);
+static int AHI_OpenAudio(SDL_AudioSpec *spec);
+static void AHI_WaitAudio();
+static void AHI_PlayAudio();
+static Uint8 *AHI_GetAudioBuf();
+static void AHI_CloseAudio();
 
 #ifndef __SASC
         #define mymalloc(x) AllocVec(x,MEMF_PUBLIC)
@@ -50,7 +50,7 @@ static void AHI_CloseAudio(_THIS);
         #define myfree free
 #endif
 
-void AHICALL AudioDriver_AHI::fill_audio(void *udata, Uint8 *stream, int length)
+void AudioDriver_AHI::fill_audio(void *udata, Uint8 *stream, int length)
 {
 	AudioDriver_AHI* audioDriver = (AudioDriver_AHI*)udata;
 

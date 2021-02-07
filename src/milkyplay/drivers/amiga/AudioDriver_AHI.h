@@ -39,11 +39,12 @@
 
 #include <exec/exec.h>
 #include <dos/dos.h>
-#if defined(__SASC) || defined(WARPOS)
+//#if defined(__SASC) || defined(WARPOS)
 #include <proto/exec.h>
-#else
-#include <inline/exec.h>
-#endif
+#include <SDL.h>
+//#else
+//#include <inline/exec.h>
+//#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -63,7 +64,7 @@ private:
         Uint32 playing;
 	mp_uint32	periodSize;
 
-	static void AHICALL fill_audio(void *udata, Uint8 *stream, int len);
+	static void fill_audio(void *udata, Uint8 *stream, int len);
 
 public:
 				AudioDriver_AHI();

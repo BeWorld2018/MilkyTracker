@@ -316,7 +316,7 @@ public:
 		strBuffer(new char[length + 1]),
 		allocatedSize(length + 1)
 	{
-		memcpy(strBuffer, (const char*)str, length);
+		memcpy(strBuffer, str, length);
 		strBuffer[length] = 0;
 	}
 

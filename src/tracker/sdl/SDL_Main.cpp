@@ -81,6 +81,11 @@
 #ifdef HAVE_LIBRTMIDI
 #include "../midi/posix/MidiReceiver_pthread.h"
 #endif
+
+#if defined(__AMIGA__) || defined(WARPUP) || defined(__WARPOS__) || defined(AROS) || defined(__amigaos4__) || defined(__morphos__)
+#include "amigaversion.h"
+#endif
+
 // --------------------------------------------------------------------------
 
 static SDL_TimerID			timer;
@@ -973,7 +978,8 @@ unrecognizedCommandLineSwitch:
 	{
 		PPSystemString newCwd = path.getCurrent();
 		path.change(oldCwd);
-		SendFile(realpath(loadFile, loadFileAbsPath));
+		//SendFile(realpath(loadFile, loadFileAbsPath));
+		SendFile(loadFile);
 		path.change(newCwd);
 		pp_uint16 chr[3] = {VK_RETURN, 0, 0};
 		PPEvent event(eKeyDown, &chr, sizeof(chr));

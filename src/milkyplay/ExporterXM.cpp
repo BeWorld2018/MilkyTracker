@@ -1310,7 +1310,7 @@ mp_sint32 packPattern(const mp_ubyte* pattern, mp_ubyte* outputPattern, mp_sint3
             }
             else 
 			{
-				memcpy(outputPattern+j,const_cast<mp_ubyte*>(pattern+z),5);
+				memcpy(outputPattern+j,pattern+z,5);
 				j+=5;
             }
 
@@ -1388,7 +1388,7 @@ mp_sint32 XModule::saveExtendedModule(const SYSCHAR* fileName)
 	header.whythis1a = 0x1a;
 	f.writeByte(header.whythis1a);
 #ifdef MILKYTRACKER
-#include "../tracker/version.h"
+#include "version.h"
 	f.write(MILKYTRACKER_VERSION_STRING, 1, 20);
 #else
 	f.write(header.tracker, 1, 20);
