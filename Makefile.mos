@@ -1,0 +1,55 @@
+CC=ppc-morphos-g++-10
+GCC=ppc-morphos-gcc-10
+STRIP		=	strip
+
+CCFLAGS=-O2 -noixemul -D__MORPHOS_SHAREDLIBS -I/usr/local/include -I/usr/local/include/SDL2 -std=c++98 -DMILKYTRACKER \
+ -I./src/compression -I./src/tracker -I./src/fx -I./src/milkyplay -I./src/ppui/osinterface -I./src/ppui/osinterface/amiga \
+ -I./src/ppui/osinterface/posix -I./src/ppui -I./src/ppui/sdl -I./src/compression  -I./src/milkyplay/drivers/sdl -I./src/milkyplay/drivers/amiga -I./src
+
+#src/compression/DecompressorLHA.o  src/ppui/osinterface/sdl/PPOpenPanel_SDL.o src/compression/DecompressorZIP.o
+OFILES=	src/compression/Decompressor.o src/compression/DecompressorGZIP.o src/compression/DecompressorLZX.o src/compression/DecompressorPP20.o src/compression/DecompressorUMX.o  src/compression/PP20.o src/compression/unlzx.o \
+		src/fx/Camera.o src/fx/Filter.o src/fx/Fire.o src/fx/fpmath.o src/fx/Math3d.o src/fx/ParticleBlobs.o src/fx/ParticleEmitter.o src/fx/ParticleFun.o \
+		src/fx/ParticleFX.o src/fx/ParticleScene.o src/fx/Starfield.o src/fx/TCBSpline.o src/fx/TCBSplineTest.o src/fx/Texture.o \
+		src/fx/TexturedGrid.o src/fx/TexturedPlane.o src/fx/Twister.o src/fx/TwisterFX.o \
+		src/milkyplay/AudioDriverBase.o src/milkyplay/AudioDriverManager.o src/milkyplay/AudioDriver_NULL.o src/milkyplay/AudioDriver_WAVWriter.o \
+		src/milkyplay/ChannelMixer.o src/milkyplay/ExporterXM.o src/milkyplay/LittleEndian.o src/milkyplay/drivers/sdl/AudioDriver_SDL.o \
+		src/milkyplay/Loader669.o src/milkyplay/LoaderAMF.o src/milkyplay/LoaderAMS.o src/milkyplay/LoaderCBA.o src/milkyplay/LoaderDBM.o src/milkyplay/LoaderDIGI.o src/milkyplay/LoaderDSM.o src/milkyplay/LoaderDTM.o src/milkyplay/LoaderFAR.o src/milkyplay/LoaderGDM.o src/milkyplay/LoaderIMF.o src/milkyplay/LoaderIT.o src/milkyplay/LoaderMDL.o src/milkyplay/LoaderMOD.o src/milkyplay/LoaderMTM.o src/milkyplay/LoaderMXM.o src/milkyplay/LoaderOKT.o src/milkyplay/LoaderPLM.o src/milkyplay/LoaderPSM.o src/milkyplay/LoaderPTM.o src/milkyplay/LoaderS3M.o src/milkyplay/LoaderSTM.o src/milkyplay/LoaderULT.o src/milkyplay/LoaderUNI.o src/milkyplay/LoaderXM.o src/milkyplay/MasterMixer.o \
+		src/milkyplay/PlayerBase.o src/milkyplay/PlayerFAR.o src/milkyplay/PlayerGeneric.o src/milkyplay/PlayerIT.o src/milkyplay/PlayerSTD.o src/milkyplay/ResamplerFactory.o src/milkyplay/SampleLoaderAbstract.o src/milkyplay/SampleLoaderAIFF.o src/milkyplay/SampleLoaderALL.o src/milkyplay/SampleLoaderGeneric.o src/milkyplay/SampleLoaderIFF.o src/milkyplay/SampleLoaderWAV.o src/milkyplay/XIInstrument.o src/milkyplay/XMFile.o  src/milkyplay/XModule.o \
+		src/ppui/osinterface/amiga/AslRequester.o src/ppui/osinterface/amiga/PPOpenPanel_Amiga.o src/ppui/osinterface/sdl/PPMessageBox_SDL.o \
+		src/ppui/osinterface/posix/PPPath_POSIX.o src/ppui/osinterface/posix/PPSystem_POSIX.o \
+		src/ppui/osinterface/sdl/PPMutex.o  src/ppui/osinterface/sdl/PPQuitSaveAlert_SDL.o src/ppui/osinterface/sdl/PPSavePanel_SDL.o src/ppui/osinterface/sdl/SDL_ModalLoop.o \
+		src/ppui/osinterface/PPPathFactory.o src/ppui/sdl/DisplayDeviceFB_SDL.o src/ppui/sdl/DisplayDevice_SDL.o \
+		src/ppui/Button.o src/ppui/CheckBoxLabel.o src/ppui/CheckBox.o src/ppui/Container.o src/ppui/ContextMenu.o src/ppui/Control.o src/ppui/DialogBase.o src/ppui/DialogFileSelector.o src/ppui/Dictionary.o src/ppui/DictionaryKey.o src/ppui/Event.o src/ppui/Font.o \
+		src/ppui/Graphics_15BIT.o src/ppui/Graphics_16BIT.o src/ppui/Graphics_24bpp_generic.o src/ppui/Graphics_32bpp_generic.o src/ppui/Graphics_ARGB32.o src/ppui/Graphics_BGR24.o src/ppui/Graphics_BGR24_SLOW.o src/ppui/KeyboardBindingHandler.o \
+		src/ppui/ListBox.o src/ppui/ListBoxFileBrowser.o src/ppui/Menu.o src/ppui/MessageBoxContainer.o src/ppui/PPUIConfig.o src/ppui/RadioGroup.o src/ppui/Screen.o src/ppui/Scrollbar.o src/ppui/Seperator.o src/ppui/Slider.o src/ppui/StaticText.o src/ppui/Tools.o \
+		src/ppui/TransparentContainer.o \
+		src/tracker/AnimatedFXControl.o src/tracker/ColorExportImport.o src/tracker/ColorPaletteContainer.o src/tracker/DialogChannelSelector.o src/tracker/DialogEQ.o src/tracker/DialogGroupSelection.o src/tracker/DialogHandlers.o src/tracker/DialogListBox.o src/Tracker/DialogWithValues.o src/tracker/DialogPanning.o src/tracker/DialogQuickChooseInstrument.o src/tracker/DialogResample.o src/tracker/DialogZap.o \
+		src/tracker/EditorBase.o src/tracker/Equalizer.o src/tracker/EnvelopeContainer.o src/tracker/EnvelopeEditor.o src/tracker/EnvelopeEditorControl.o src/tracker/EQConstants.o src/tracker/FileExtProvider.o src/tracker/FileIdentificator.o \
+		src/tracker/GlobalColorConfig.o src/tracker/InputControlListener.o src/tracker/LogoBig.o src/tracker/LogoSmall.o src/tracker/ModuleEditor.o src/tracker/ModuleServices.o src/tracker/PatternEditor.o src/tracker/PatternEditorClipBoard.o src/tracker/PatternEditorControl.o \
+		src/tracker/PatternEditorControlEventListener.o  src/tracker/PatternEditorControlKeyboard.o src/tracker/PatternEditorControlTransposeHandler.o  src/tracker/PatternEditorTools.o src/tracker/PatternTools.o \
+		src/tracker/PeakLevelControl.o  src/tracker/Piano.o src/tracker/PianoControl.o src/tracker/PlayerController.o src/tracker/PlayerLogic.o src/tracker/PlayerMaster.o src/tracker/RecorderLogic.o src/tracker/RecPosProvider.o src/tracker/ResamplerHelper.o src/tracker/SampleEditor.o \
+		src/tracker/SampleEditorControl.o src/tracker/SampleEditorControlToolHandler.o src/tracker/SampleEditorResampler.o src/tracker/SamplePlayer.o src/tracker/ScopesControl.o src/tracker/SectionAbout.o src/tracker/SectionAbstract.o \
+		src/tracker/SectionAdvancedEdit.o src/tracker/SectionDiskMenu.o src/tracker/SectionHDRecorder.o src/tracker/SectionInstruments.o src/tracker/SectionOptimize.o src/tracker/SectionQuickOptions.o src/tracker/SectionSamples.o src/tracker/SectionSettings.o src/tracker/SectionSwitcher.o src/tracker/SectionTranspose.o \
+		src/tracker/SectionUpperLeft.o src/tracker/SongLengthEstimator.o src/tracker/SystemMessage.o src/tracker/TabHeaderControl.o src/tracker/TabManager.o src/tracker/TabTitleProvider.o src/tracker/TitlePageManager.o src/tracker/ToolInvokeHelper.o src/tracker/Tracker.o \
+		src/tracker/TrackerConfig.o src/tracker/TrackerInit.o src/tracker/TrackerKeyboard.o src/tracker/TrackerSettings.o src/tracker/TrackerSettingsDatabase.o src/tracker/TrackerShortCuts.o src/tracker/TrackerShutDown.o src/tracker/TrackerUpdate.o src/tracker/TrackerStartUp.o src/tracker/Undo.o src/tracker/VRand.o src/tracker/Zapper.o \
+		src/tracker/sdl/SDL_Main.o src/tracker/sdl/SDL_KeyTranslation.o
+
+APP=MilkyTracker
+INC=
+LINKPATH=
+
+LIBS= -L/usr/local/lib -lSDL2 -lz_shared -lc -lm -noixemul
+
+all: $(APP)
+
+$(APP): $(OFILES)
+	$(CC) $(OFILES) $(CCFLAGS) $(LINKPATH) $(LIBS) -o  $(APP).db
+	$(STRIP) --strip-unneeded --remove-section=.comment $(APP).db -o $(APP)
+
+.cpp.o:
+	$(CC) $(CCFLAGS) $(INC) -c $< -o $@
+
+
+clean:
+	rm -rf  $(OFILES)
+	rm -f $(APP)
