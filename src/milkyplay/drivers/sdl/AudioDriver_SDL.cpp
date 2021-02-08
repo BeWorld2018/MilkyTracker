@@ -109,7 +109,9 @@ mp_sint32 AudioDriver_SDL::initDevice(mp_sint32 bufferSizeInWords, mp_uint32 mix
 	}
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
+	#ifdef DEBUG
 	printf("SDL: Using audio driver: %s\n", SDL_GetCurrentAudioDriver());
+	#endif
 #else
 	printf("SDL: Using audio driver: %s\n", SDL_AudioDriverName(name, 32));
 
@@ -132,9 +134,9 @@ mp_sint32 AudioDriver_SDL::initDevice(mp_sint32 bufferSizeInWords, mp_uint32 mix
 	{
 		this->mixFrequency = obtained.freq;
 	}
-
+#ifdef DEBUG
 	printf("SDL: Buffer size = %i samples (requested %i)\n", obtained.samples, finalWantedSize / wanted.channels);
-
+#endif
 	periodSize = obtained.samples;
 	// If we got what we requested, return MP_OK,
 	// otherwise return the actual number of samples * number of channels

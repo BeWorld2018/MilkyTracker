@@ -164,17 +164,26 @@ const PPPathEntry* PPPath_POSIX::getNextEntry()
 
 bool PPPath_POSIX::canGotoHome() const
 {
+	#ifdef __MORPHOS__
+	return false;
+	#else
 	return getenv("HOME") ? true : false;
+	#endif
 }
 
 void PPPath_POSIX::gotoHome()
 {
+	#ifndef __MORPHOS__
+	
+	
 	char* home = getenv("HOME");
 	if (home)
 	{
 		change(home);
 		updatePath();
 	}
+	
+	#endif
 }
 
 bool PPPath_POSIX::canGotoRoot() const

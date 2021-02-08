@@ -82,6 +82,7 @@ width, height, scaleFactor, bpp, fullScreen, theOrientation),
 
 	// Log renderer capabilities
 	SDL_RendererInfo theRendererInfo;
+#ifdef DEBUG
 	if (!SDL_GetRendererInfo(theRenderer, &theRendererInfo))
 	{
 		if (theRendererInfo.flags & SDL_RENDERER_SOFTWARE) printf("SDL: Using software renderer.\n");
@@ -89,7 +90,8 @@ width, height, scaleFactor, bpp, fullScreen, theOrientation),
 		if (theRendererInfo.flags & SDL_RENDERER_PRESENTVSYNC) printf("SDL: Vsync enabled.\n");
 		if (theRendererInfo.flags & SDL_RENDERER_TARGETTEXTURE) printf("SDL: Renderer supports rendering to texture.\n");
 	}
-
+#endif
+	
 	// Lock aspect ratio and scale the UI up to fit the window
 #ifdef HIDPI_SUPPORT
 	SDL_RenderSetLogicalSize(theRenderer, rendererW, rendererH);

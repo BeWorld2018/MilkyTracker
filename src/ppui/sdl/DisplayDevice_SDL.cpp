@@ -74,21 +74,21 @@ SDL_Window* PPDisplayDevice::CreateWindow(pp_int32& w, pp_int32& h, pp_int32& bp
 	SDL_GL_MakeCurrent(theWindow, ctx);
 	
 	glGetStringAPI = (PFNGLGETSTRINGPROC)SDL_GL_GetProcAddress("glGetString");
-
+#ifdef DEBUG
 	fprintf(stdout, "Available Renderers: %s\n", rendername);
 	if (glGetStringAPI)
 	{
 		fprintf(stdout, "Vendor     : %s\n", glGetStringAPI(GL_VENDOR));
 		fprintf(stdout, "Renderer   : %s\n", glGetStringAPI(GL_RENDERER));
 		fprintf(stdout, "Version    : %s\n", glGetStringAPI(GL_VERSION));
-#ifdef DEBUG
 		fprintf(stdout, "Extensions : %s\n", glGetStringAPI(GL_EXTENSIONS));
-#endif
 	}
+#endif
 	// Prevent window from being resized below minimum
 	SDL_SetWindowMinimumSize(theWindow, w, h);
+	#ifdef DEBUG
 	fprintf(stderr, "SDL: Minimum window size set to %dx%d.\n", w, h);
-
+#endif
 	return theWindow;
 }
 #else

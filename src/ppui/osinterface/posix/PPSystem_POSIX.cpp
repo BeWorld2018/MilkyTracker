@@ -65,6 +65,10 @@ SYSCHAR System::buffer[PATH_MAX+1];
 
 const SYSCHAR* System::getTempFileName()
 {
+#if __MORPHOS__
+	strcpy(buffer, "PROGDIR:milkytracker_temp");
+	return buffer;
+#else
 	// Suppressed warning: "'tmpnam' is deprecated: This function is provided for
 	// compatibility reasons only. Due to security concerns inherent in the
 	// design of tmpnam(3), it is highly recommended that you use mkstemp(3)
@@ -92,6 +96,7 @@ const SYSCHAR* System::getTempFileName()
 			strcpy(buffer, "milkytracker_temp");
 	}
 	return buffer;
+#endif
 }
 
 const SYSCHAR* System::getConfigFileName()
@@ -111,6 +116,11 @@ const SYSCHAR* System::getConfigFileName()
 	path.Append("milkytracker_config");
 	strcpy(buffer, path.Path());	
 	return buffer;
+#elif __MORPHOS__
+	char *home = NULL;
+	strncpy(buffer, "PROGDIR:milkytracker_config", PATH_MAX);
+	return buffer;
+
 #else
 #ifdef __amigaos4__
 	char *home = NULL;
