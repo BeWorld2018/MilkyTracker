@@ -42,7 +42,7 @@ typedef signed int		pp_int32;
 #if !defined(__PPUI_WINDOWS__)
 	#include <stdio.h>
 	#include <stdlib.h>
-	#include <string.h>
+	#include <cstring>
 	#include <string.h>
 	#include "VirtualKeys.h"
 	#include "PPSystemString_POSIX.h"
@@ -668,6 +668,5 @@ struct Descriptor
 	}
 	
 };
-
 
 #endif
