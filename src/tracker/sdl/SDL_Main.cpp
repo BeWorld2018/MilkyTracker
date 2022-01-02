@@ -83,19 +83,26 @@
 #endif
 // --------------------------------------------------------------------------
 
-static SDL_TimerID			timer;
+#ifdef AMIGA
+SDL_Surface*			screen			= NULL;
+static 
+#endif
+SDL_TimerID			timer;
 
 // Tracker globals
-static PPScreen*			myTrackerScreen		= NULL;
-static Tracker*				myTracker			= NULL;
+static PPScreen*		myTrackerScreen		= NULL;
+static Tracker*			myTracker		= NULL;
 static PPDisplayDevice*		myDisplayDevice		= NULL;
 #ifdef HAVE_LIBRTMIDI
 static MidiReceiver*		myMidiReceiver		= NULL;
 #endif
 
 // Okay what else do we need?
-PPMutex*			globalMutex				= NULL;
-static bool			ticking					= false;
+PPMutex*			globalMutex		= NULL;
+#ifdef AMIGA
+static PPMutex*			timerMutex		= NULL;
+#endif
+static bool			ticking			= false;
 
 struct MouseState {
 	pp_uint32 myTime;

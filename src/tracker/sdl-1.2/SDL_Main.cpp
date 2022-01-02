@@ -31,6 +31,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
 #if defined(__AMIGA__) || defined(__amigaos4__)
 #include <exec/exec.h>
 #ifndef AFB_68080
@@ -46,6 +47,7 @@
 #if defined(__AMIGA__) || defined(WARPUP) || defined(__WARPOS__) || defined(AROS) || defined(__amigaos4__) || defined(__morphos__)
 #include "amigaversion.h"
 #endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -773,7 +775,7 @@ int main(int argc, char *argv[])
 //	if (ammx == 1)
 //		ammxon = "On";
 
-#if !defined(__amigaos4__) && !defined(MORPHOS) && !defined(WARPOS) && defined(__AMIGA__)
+#if defined(__amigaos3__)
 	// find out what type of CPU we have
 	if ((SysBase->AttnFlags & AFF_68080) != 0)
 		cpu_type = 68080;

@@ -100,18 +100,18 @@ const SYSCHAR* System::getConfigFileName()
 	BPath path;
 	find_directory(B_USER_SETTINGS_DIRECTORY, &path);
 	path.Append("MilkyTracker");
-	
+
 	BEntry dirEntry(path.Path());
 	if (!dirEntry.Exists()) {
 		// MilkyTracker settings dir doesn't exist, create it
 		BDirectory temp;
 		temp.CreateDirectory(path.Path(), NULL);
 	}
-	
+
 	path.Append("milkytracker_config");
-	strcpy(buffer, path.Path());	
+	strcpy(buffer, path.Path());
 	return buffer;
-#else
+#endif
 #ifdef __amigaos4__
 	char *home = NULL;
 #else
@@ -143,8 +143,8 @@ const SYSCHAR* System::getConfigFileName()
 	// Move possible existing config into new location if not already present
 	if(home && access(oldLoc, F_OK) == 0 && access(buffer, F_OK) != 0)
 		rename(oldLoc, buffer);
+
 	return buffer;
-#endif
 }
 
 void System::msleep(int msecs)
