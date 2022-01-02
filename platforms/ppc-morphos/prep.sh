@@ -7,7 +7,7 @@ set -e
 export TARGET='ppc-morphos'
 export SYSROOT=/opt/$TARGET
 export PPC_CPU="-mhard-float"
-export PPC_COMMON="-s -ffast-math -fomit-frame-pointer"
+export PPC_COMMON="-s -ffast-math -fomit-frame-pointer -noixemul"
 export PPC_CFLAGS="${CFLAGS} ${PPC_CPU} ${PPC_COMMON}"
 export PPC_CXXFLAGS="${CXXFLAGS} ${PPC_CPU} ${PPC_COMMON}"
 export CURPATH="${PWD}"
@@ -30,11 +30,11 @@ cp -fvr powersdl_sdk/Developer/usr/local/* ${SYSROOT}/usr/
 cd "${SUBMODULES}"
 
 # lhasa
-cd "${SUBMODULES}"/lhasa
-./autogen.sh --host=${TARGET}
-CFLAGS="${PPC_CFLAGS}" CXXFLAGS="${PPC_CXXFLAGS}" ./configure --disable-sdltest --disable-shared --enable-static --host=${TARGET} --prefix=${SYSROOT}
-make -j$(getconf _NPROCESSORS_ONLN)
-make install
-cd "${SUBMODULES}"
+#cd "${SUBMODULES}"/lhasa
+#./autogen.sh --host=${TARGET}
+#CFLAGS="${PPC_CFLAGS}" CXXFLAGS="${PPC_CXXFLAGS}" ./configure --disable-sdltest --disable-shared --enable-static --host=${TARGET} --prefix=${SYSROOT}
+#make -j$(getconf _NPROCESSORS_ONLN)
+#make install
+#cd "${SUBMODULES}"
 
 cd "${CURPATH}"
