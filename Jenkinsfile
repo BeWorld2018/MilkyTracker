@@ -99,41 +99,43 @@ def buildStep(dockerImage, os) {
 	} catch(err) {
 		slackSend color: "danger", channel: "#jenkins", message: "Build Failed: ${fixed_job_name} #${env.BUILD_NUMBER} Target: ${os} DockerImage: ${dockerImage} (<${env.BUILD_URL}|Open>)"
 		currentBuild.result = 'FAILURE'
-		notify("Build Failed: ${fixed_job_name} #${env.BUILD_NUMBER} Target: ${os} DockerImage: ${dockerImage}")
+		notify("Build Failed: ${fixed_job_name} #${env.BUILD_NUMBER} Target: ${os} DockerImage: ${dockerImage}");
+		throw err;
 	}
 }
 
 node('master') {
-	killall_jobs()
-	def fixed_job_name = env.JOB_NAME.replace('%2F','/')
-	slackSend color: "good", channel: "#jenkins", message: "Build Started: ${fixed_job_name} #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
-	parallel (
-		'Build m68k-amigaos': {
+	killall_jobs();
+	def fixed_job_name = env.JOB_NAME.replace('%2F','/');
+	slackSend color: "good", channel: "#jenkins", message: "Build Started: ${fixed_job_name} #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)";
+	
+	checkout scm;
+
+	def branches = [:]
+	def project = readJSON file: "JenkinsEnv.json";
+
+	project.builds.each { v ->
+		branches["Build ${v.DockerTag}"] = { 
 			node {
-				buildStep('amigadev/crosstools:m68k-amigaos', 'm68k-amigaos')
-			}
-		},
-		'Build ppc-morphos': {
-			node {
-				buildStep('amigadev/crosstools:ppc-morphos', 'ppc-morphos')
+				buildStep("${v.DockerRoot}/${v.DockerImage}:${v.DockerTag}", "${v.DockerTag}");
 			}
 		}
-	)
+	}
+	
+	sh "rm -rf ./*"
+
+	parallel branches;
 
 	stage("Publishing") {
 		sh "rm -rfv publishing/"
 
-		try {
-			// ${os}
-			unstash "m68k-amigaos"
-		} catch(err) {
-			notify('Stash m68k-amigaos not found')
-		}
-		
-		try {
-			unstash "ppc-morphos"
-		} catch(err) {
-			notify('Stash ppc-morphos not found')
+		project.builds.each { v ->
+			try {
+				// ${os}
+				unstash("${v.DockerTag}");
+			} catch(err) {
+				notify("Stash ${v.DockerTag} not found");
+			}
 		}
 
 		if (env.TAG_NAME) {
