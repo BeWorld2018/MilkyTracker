@@ -39,10 +39,10 @@ def killall_jobs() {
 }
 
 def buildStep(dockerImage, os) {
-	def fixed_job_name = env.JOB_NAME.replace('%2F','/')
-	def commondir = env.WORKSPACE + '/../' + env.JOB_NAME.replace('%2F','/') + '/'
+	def fixed_job_name = env.JOB_NAME.replace('%2F','/');
+	def commondir = env.WORKSPACE + '/../' + env.JOB_NAME.replace('%2F','/') + '/';
 	
-	try{
+	try {
 		stage("Building on \"${dockerImage}\" for \"${os}\"...") {
 			properties([pipelineTriggers([githubPush()])])
 

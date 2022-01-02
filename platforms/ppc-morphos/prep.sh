@@ -7,7 +7,7 @@ set -e
 export TARGET='ppc-morphos'
 export SYSROOT=/opt/$TARGET
 export PPC_CPU="-mhard-float"
-export PPC_COMMON="-s -ffast-math -fomit-frame-pointer -noixemul"
+export PPC_COMMON="-s -ffast-math -fomit-frame-pointer"
 export PPC_CFLAGS="${CFLAGS} ${PPC_CPU} ${PPC_COMMON}"
 export PPC_CXXFLAGS="${CXXFLAGS} ${PPC_CPU} ${PPC_COMMON}"
 export CURPATH="${PWD}"
