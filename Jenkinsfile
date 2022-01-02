@@ -38,7 +38,7 @@ def killall_jobs() {
 	echo "Done killing"
 }
 
-def buildStep(dockerImage, os) {
+def buildStep(dockerImage, os, flags) {
 	def fixed_job_name = env.JOB_NAME.replace('%2F','/');
 	def commondir = env.WORKSPACE + '/../' + env.JOB_NAME.replace('%2F','/') + '/';
 	
@@ -74,7 +74,7 @@ def buildStep(dockerImage, os) {
 				}
 
 				dir("build/${os}") {
-					sh "PKG_CONFIG_PATH=/opt/${os}/lib/pkgconfig/:/opt/${os}/share/pkgconfig/:/opt/${os}/usr/lib/pkgconfig/:/opt/${os}/usr/share/pkgconfig/ cmake -DCMAKE_BUILD_TYPE=Release -DM68K_CPU=68040 -DM68K_FPU=hard ../.."
+					sh "PKG_CONFIG_PATH=/opt/${os}/lib/pkgconfig/:/opt/${os}/share/pkgconfig/:/opt/${os}/usr/lib/pkgconfig/:/opt/${os}/usr/share/pkgconfig/ cmake -DCMAKE_BUILD_TYPE=Release ${flags} ../.."
 					def _NPROCESSORS_ONLN = sh (
 						script: 'getconf _NPROCESSORS_ONLN',
 						returnStdout: true
@@ -117,7 +117,7 @@ node('master') {
 	project.builds.each { v ->
 		branches["Build ${v.DockerTag}"] = { 
 			node {
-				buildStep("${v.DockerRoot}/${v.DockerImage}:${v.DockerTag}", "${v.DockerTag}");
+				buildStep("${v.DockerRoot}/${v.DockerImage}:${v.DockerTag}", "${v.DockerTag}", "${v.BuildParam}");
 			}
 		}
 	}
