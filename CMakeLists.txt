@@ -20,6 +20,10 @@
 #
 
 cmake_minimum_required(VERSION 3.10)
+
+# Additional CMake modules
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
 project(MilkyTracker)
 
 # Set C++ standard to C++98
@@ -47,24 +51,11 @@ endif()
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSTEM_NAME_LOWER)
 
-# Additional CMake modules
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
 # Version number in format X.YY.ZZ
 set(VER_X  1)
 set(VER_YY 03)
 set(VER_ZZ 00)
 set(VER_FULL "${VER_X}.${VER_YY}.${VER_ZZ}")
-
-# Build date Information
-string(TIMESTAMP VER_YEAR "%Y")
-string(TIMESTAMP VER_MONTH "%m")
-string(TIMESTAMP VER_DAY "%d")
-string(REGEX REPLACE "^0+" "" VER_MONTH "${VER_MONTH}")
-string(REGEX REPLACE "^0+" "" VER_DAY "${VER_DAY}")
-
-# Final build filename, for example "milkytracker-1.02.00-win32.zip"
-set(BUILD_FILENAME "milkytracker-${VER_FULL}-${SYSTEM_NAME_LOWER}")
 
 # Generate version header from the above
 configure_file(
@@ -92,14 +83,13 @@ if(APPLE)
 elseif(WIN32)
     set(CPACK_GENERATOR ZIP)
 elseif(AMIGA)
-    set(CPACK_GENERATOR LHA)
+    set(CPACK_GENERATOR ZIP)
 else()
     set(CPACK_GENERATOR "TGZ;DEB;RPM")
 endif()
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME_LOWER})
 set(CPACK_PACKAGE_VENDOR "MilkyTracker Team")
 set(CPACK_PACKAGE_CONTACT "support@milkytracker.org")
-set(CPACK_PACKAGE_FILE_NAME ${BUILD_FILENAME})
 set(CPACK_PACKAGE_VERSION_MAJOR ${VER_X})
 set(CPACK_PACKAGE_VERSION_MINOR ${VER_YY})
 set(CPACK_PACKAGE_VERSION_PATCH ${VER_ZZ})
@@ -184,10 +174,14 @@ elseif(WIN32)
     # Windows MIDI support requires no external libraries
     message(STATUS "Enabled MIDI support (WinMM)")
     add_subdirectory(src/midi)
-elseif(AROS)
-    # AROS will provide the SDL dependency via makefile.
-elseif(AMIGA)
-    find_package(SDL 1.2 REQUIRED)
+
+    # MingW support
+    if(MINGW)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWIN32")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWIN32")
+    endif()
+elseif(AMIGA OR AROS)
+    install(FILES ${PROJECT_SOURCE_DIR}/resources/packaging/amigaos/milkytracker.info DESTINATION .)
 else()
     # Workaround for SDL bug #3295, which occurs in SDL2 <2.0.5
     # https://bugzilla.libsdl.org/show_bug.cgi?id=3295
@@ -242,6 +236,7 @@ add_subdirectory(docs)
 add_subdirectory(resources/music)
 add_subdirectory(src/compression)
 add_subdirectory(src/fx)
+add_subdirectory(src/tmm)
 add_subdirectory(src/milkyplay)
 add_subdirectory(src/ppui)
 add_subdirectory(src/tracker)

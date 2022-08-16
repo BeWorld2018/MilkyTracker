@@ -41,7 +41,7 @@
 #define SCROLLBARWIDTH  SCROLLBUTTONSIZE
 
 pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
-{ 
+{
 	if (pattern == NULL)
 		return -1;
 
@@ -52,32 +52,32 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 	{
 		case eFocusGained:
 		case eFocusGainedNoRepaint:
-		{	
+		{
 			hasFocus = true;
 			if (menuInvokeChannel != -1)
 			{
 				lastMenuInvokeChannel = menuInvokeChannel;
 				menuInvokeChannel = -1;
-				//parentScreen->paintControl(this);			
+				//parentScreen->paintControl(this);
 			}
-			
+
 			if (event->getID() == eFocusGained)
-				parentScreen->paintControl(this);			
-			
+				parentScreen->paintControl(this);
+
 			//resetKeyModifier();
 			goto leave;
 		}
 
 		case eFocusLost:
-		{	
-			hasFocus = false;	
-			parentScreen->paintControl(this);			
+		{
+			hasFocus = false;
+			parentScreen->paintControl(this);
 			//resetKeyModifier();
 			goto leave;
 		}
 
 		case eFocusLostNoRepaint:
-		{	
+		{
 			hasFocus = false;
 			//resetKeyModifier();
 			goto leave;
@@ -86,7 +86,7 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 		case eMouseWheelMoved:
 		{
 			TMouseWheelEventParams* params = (TMouseWheelEventParams*)event->getDataPtr();
-			
+
 			// Vertical scrolling takes priority over horizontal scrolling and is mutually
 			// exclusive from horizontal scrolling.
 			if (params->deltaY)
@@ -96,20 +96,20 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 				PPEvent e = dy < 0 ? PPEvent(eBarScrollDown, -dy) : PPEvent(eBarScrollUp, dy);
 				handleEvent(reinterpret_cast<PPObject*>(vLeftScrollbar), &e);
 			}
-			
+
 			else if (params->deltaX)
 			{
 				PPEvent e = params->deltaX < 0 ? PPEvent(eBarScrollDown, -params->deltaX) : PPEvent(eBarScrollUp, params->deltaX);
 				handleEvent(reinterpret_cast<PPObject*>(hBottomScrollbar), &e);
 			}
-			
+
 			event->cancel();
-			
+
 			break;
 		}
 
 		case eRMouseDown:
-		{			
+		{
 			PPPoint* p = (PPPoint*)event->getDataPtr();
 
 			if (hTopScrollbar->hit(*p))
@@ -135,7 +135,7 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 					break;
 				controlCaughtByRMouseButton = true;
 				caughtControl = vLeftScrollbar;
-				caughtControl->dispatchEvent(event);				
+				caughtControl->dispatchEvent(event);
 			}
 			else if (vRightScrollbar->hit(*p))
 			{
@@ -143,18 +143,18 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 					break;
 				controlCaughtByRMouseButton = true;
 				caughtControl = vRightScrollbar;
-				caughtControl->dispatchEvent(event);				
+				caughtControl->dispatchEvent(event);
 			}
-			else 
+			else
 			{
 				RMouseDownInChannelHeading = -1;
 				lastAction = RMouseDownActionFirstRClick;
 
 				PPPoint cp = *p;
-				
+
 				cp.x-=location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
 				cp.y-=location.y + SCROLLBARWIDTH + font->getCharHeight() + 4;
-				
+
 				if (cp.x < 0)
 					break;
 
@@ -171,7 +171,7 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 
 				invokeMenu(i, *p);
 			}
-			
+
 			goto leave;
 		}
 
@@ -181,20 +181,20 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 			if (caughtControl && !controlCaughtByLMouseButton && !controlCaughtByRMouseButton)
 			{
 				caughtControl->dispatchEvent(event);
-				caughtControl = NULL;			
+				caughtControl = NULL;
 				break;
 			}
 
 			PPPoint cp = *((PPPoint*)event->getDataPtr());
-			
+
 			cp.x-=location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
 			cp.y-=location.y + SCROLLBARWIDTH + font->getCharHeight() + 4;
-			
+
 			if (cp.x < 0 || RMouseDownInChannelHeading == -1)
 				break;
-			
+
 			// right click on channel number
-			if ((menuInvokeChannel = pointInChannelHeading(cp)) != -1 && 
+			if ((menuInvokeChannel = pointInChannelHeading(cp)) != -1 &&
 				menuInvokeChannel == RMouseDownInChannelHeading &&
 				lastAction == RMouseDownActionFirstRClick)
 			{
@@ -242,7 +242,7 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 					break;
 				controlCaughtByLMouseButton = true;
 				caughtControl = vLeftScrollbar;
-				caughtControl->dispatchEvent(event);				
+				caughtControl->dispatchEvent(event);
 			}
 			else if (vRightScrollbar->hit(*p))
 			{
@@ -250,44 +250,44 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 					break;
 				controlCaughtByLMouseButton = true;
 				caughtControl = vRightScrollbar;
-				caughtControl->dispatchEvent(event);				
+				caughtControl->dispatchEvent(event);
 			}
 			// Clicked in client area
 			else
 			{
 				PPPoint cp = *p;
-				
+
 				cp.x-=location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
 				cp.y-=location.y + SCROLLBARWIDTH + font->getCharHeight() + 4;
-				
+
 				if (cp.y <  -((pp_int32)font->getCharHeight() + 6))
 					break;
 
 				if (cp.x < -(getRowCountWidth() + 4))
 					break;
-				
+
 				// select new row by clicking on row number
 				if (cp.x < -3)
-				{			
-					pp_int32 newStartIndex = cp.y / font->getCharHeight();					
+				{
+					pp_int32 newStartIndex = cp.y / font->getCharHeight();
 					pp_int32 newStartPos = cp.x / slotSize;
-					
+
 					pp_int32 visibleRows = (visibleHeight) / font->getCharHeight();
 					pp_int32 visibleChannels = (visibleWidth) / slotSize;
-					
+
 					// copy of current selection
 					patternEditor->getSelection().backup();
-					
+
 					preCursor = patternEditor->getCursor();
-					
+
 					if (newStartIndex < visibleRows && newStartIndex >= 0)
 					{
 						if (newStartIndex + startIndex < 0)
 							break;
-						
+
 						preCursor.row = newStartIndex + startIndex;
 					}
-					
+
 					ppreCursor = &preCursor;
 					break;
 				}
@@ -299,7 +299,7 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 				pp_int32 i;
 				if ((i = pointInChannelHeading(cp)) != -1)
 				{
-				
+
 					// Special commands
 					// Right button is pressed and left button is pressed
 					if (::getKeyModifier() & KeyModifierALT)
@@ -307,7 +307,7 @@ pp_int32 PatternEditorControl::dispatchEvent(PPEvent* event)
 						RMouseDownInChannelHeading = i;
 						lastAction = RMouseDownActionSecondLClick;
 					}
-					
+
 					if (RMouseDownInChannelHeading == i)
 					{
 						if (lastAction == RMouseDownActionFirstRClick ||
@@ -333,28 +333,28 @@ unmuteAll:
 							goto leave;
 						}
 					}
-				
+
 					if (i == lastMenuInvokeChannel)
 					{
 						lastMenuInvokeChannel = -1;
 						goto leave;
 					}
-				
+
 					// show menu
 					pp_int32 menuPosY = location.y + SCROLLBARWIDTH + 1 + font->getCharHeight();
 					pp_int32 menuPosX = location.x + SCROLLBARWIDTH + getRowCountWidth() + 4 + slotSize * (i - startPos);
-				
+
 					PPPoint p2(menuPosX, menuPosY);
 
 					invokeMenu(i, p2);
-					goto leave;					
+					goto leave;
 				}
 				else if (cp.y < 0) break;
 
 				pp_int32 newStartIndex = cp.y / font->getCharHeight();
 
 				pp_int32 newStartPos = cp.x / slotSize;
-				
+
 				pp_int32 visibleRows = (visibleHeight) / font->getCharHeight();
 				pp_int32 visibleChannels = (visibleWidth) / slotSize;
 				
@@ -452,10 +452,10 @@ unmuteAll:
 			if (caughtControl && !controlCaughtByLMouseButton && !controlCaughtByRMouseButton)
 			{
 				caughtControl->dispatchEvent(event);
-				caughtControl = NULL;			
+				caughtControl = NULL;
 				break;
 			}
-			
+
 			menuInvokeChannel = -1;
 			
 			if (moveSelection && moveSelectionFinalPos != moveSelectionInitialPos)
@@ -476,9 +476,9 @@ unmuteAll:
 				if (properties.clickToCursor)
 				{
 					patternEditor->setCursor(*ppreCursor);
-			
+
 					notifyUpdate(AdvanceCodeSelectNewRow);
-					
+
 					switch (properties.scrollMode)
 					{
 						case ScrollModeToCenter:
@@ -489,7 +489,7 @@ unmuteAll:
 							break;
 					}
 				}
-				
+
 				patternEditor->resetSelection();
 			}
 			
@@ -513,7 +513,7 @@ unmuteAll:
 			
 			if (!moveSelection && !startSelection)
 				break;
-			
+
 			hasDragged = true;
 			goto markOrMoveSelection;
 			//break;
@@ -526,7 +526,7 @@ unmuteAll:
 
 			break;
 		}
-		
+
 		case eRMouseRepeat:
 		{
 			if (caughtControl && controlCaughtByRMouseButton)
@@ -541,14 +541,14 @@ unmuteAll:
 			{
 				caughtControl->dispatchEvent(event);
 				break;
-			}		
+			}
 
 			// for slowing down mouse pressed events
 			selectionTicker++;
 
 			if (selectionTicker&1)
 				break;
-			
+
 			// no selection has been made or mouse hasn't been dragged
 			if (!startSelection || !hasDragged)
 			{
@@ -557,7 +557,7 @@ unmuteAll:
 				{
 					// get point
 					PPPoint* p = (PPPoint*)event->getDataPtr();
-					
+
 					// make sure scrollbars weren't pressed
 					if (!hTopScrollbar->hit(*p) &&
 						!hBottomScrollbar->hit(*p) &&
@@ -566,14 +566,14 @@ unmuteAll:
 					{
 						// translate into local coordinate system
 						PPPoint cp = *p;
-						
+
 						cp.x-=location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
 						cp.y-=location.y + SCROLLBARWIDTH + font->getCharHeight() + 4;
-						
+
 						// not in our local CS
 						if (cp.x < 0 || cp.y < 0)
 							break;
-						
+
 						// valid channel?
 						pp_int32 i = (cp.x / slotSize) + startPos;
 						if (i < 0 || i > patternEditor->getNumChannels()-1)
@@ -585,10 +585,10 @@ unmuteAll:
 						{
 							patternEditor->getSelection().restore();
 						}
-						
+
 						// No more cursor positioning
 						ppreCursor = NULL;
-						
+
 						invokeMenu(i, *p);
 						// we're finished with event handling here
 						goto leave;
@@ -604,7 +604,7 @@ markOrMoveSelection:
 
 			cp.x-=location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
 			cp.y-=location.y + SCROLLBARWIDTH + font->getCharHeight() + 4;
-			
+
 			cp2.x-=location.x;
 			cp2.y-=location.y;
 
@@ -618,7 +618,7 @@ markOrMoveSelection:
 				if (startPos > 0)
 					startPos--;
 			}
-	
+
 			if (cp2.y > size.height - SCROLLBARWIDTH /*- ((signed)font->getCharHeight()*3)*/)
 			{
 				if (properties.scrollMode != ScrollModeStayInCenter)
@@ -659,9 +659,9 @@ markOrMoveSelection:
 			}
 
 			pp_int32 newStartIndex = cp.y / font->getCharHeight();
-			
+
 			pp_int32 newStartPos = cp.x / slotSize;
-			
+
 			pp_int32 visibleRows = (visibleHeight) / font->getCharHeight();
 			pp_int32 visibleChannels = (visibleWidth) / slotSize;
 			
@@ -720,9 +720,9 @@ markOrMoveSelection:
 		}
 
 		case eKeyDown:
-		{	
+		{
 			//assureCursorVisible();
-			
+
 			pp_uint16 keyCode = *((pp_uint16*)event->getDataPtr());
 			pp_uint16 scanCode = *(((pp_uint16*)event->getDataPtr())+1);
 			pp_uint16 character = *(((pp_uint16*)event->getDataPtr())+2);
@@ -774,21 +774,21 @@ markOrMoveSelection:
 					if (selectionKeyModifier & KeyModifierCTRL)
 						selectionModifierKeyDown();
 					break;
-			
+
 				default:
 				{
 					bool res = executeBinding(scanCodeBindings, scanCode);
 
 					if (!res)
 						res = executeBinding(eventKeyDownBindings, keyCode);
-					
+
 					if (!res)
 						handleKeyDown(keyCode, scanCode, character);
-					
+
 					break;
 				}
 			}
-			
+
 			// normal selection
 			if (keyCode == VK_LEFT ||
 				keyCode == VK_RIGHT ||
@@ -800,8 +800,8 @@ markOrMoveSelection:
 				keyCode == VK_END ||
 				keyCode == VK_TAB)
 			{
-				if ((::getKeyModifier() == (unsigned)selectionKeyModifier) && 
-					!keyboardStartSelection && 
+				if ((::getKeyModifier() == (unsigned)selectionKeyModifier) &&
+					!keyboardStartSelection &&
 					!keyboadStartSelectionFlipped)
 				{
 					patternEditor->getSelection().end = patternEditor->getCursor();
@@ -811,8 +811,8 @@ markOrMoveSelection:
 				{
 					patternEditor->getSelection().end = patternEditor->getCursor();
 				}
-			}						
-												
+			}
+
 			if (assureCursor)
 			{
 				assureCursorVisible();
@@ -841,7 +841,7 @@ markOrMoveSelection:
 		}
 
 		case eKeyUp:
-		{	
+		{
 			pp_uint16 keyCode = *((pp_uint16*)event->getDataPtr());
 
 			switch (keyCode)
@@ -868,7 +868,7 @@ markOrMoveSelection:
 
 			caughtControl->dispatchEvent(event);
 			goto leave;
-		
+
 	}
 
 leave:
@@ -894,7 +894,7 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 {
 	PatternEditorTools::Position& cursor = patternEditor->getCursor();
 	// Vertical scrollbar, scroll down
-	if ((sender == reinterpret_cast<PPObject*>(vLeftScrollbar) || 
+	if ((sender == reinterpret_cast<PPObject*>(vLeftScrollbar) ||
 		sender == reinterpret_cast<PPObject*>(vRightScrollbar)) &&
 		event->getID() == eBarScrollDown)
 	{
@@ -930,7 +930,7 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 			startIndex -= scrollAmount;
 			if (startIndex < 0)
 				startIndex = 0;
-		
+
 			pp_int32 visibleItems = (visibleHeight) / font->getCharHeight();
 
 			float v = (float)(pattern->rows - visibleItems);
@@ -959,7 +959,7 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 			case ScrollModeToEnd:
 			case ScrollModeToCenter:
 			{
-				pp_int32 visibleItems = (visibleHeight) / font->getCharHeight();		
+				pp_int32 visibleItems = (visibleHeight) / font->getCharHeight();
 				float v = (float)(pattern->rows - visibleItems);
 				startIndex = (pp_uint32)(v*pos);
 				vLeftScrollbar->setBarPosition((pp_int32)(pos*65536.0f));
@@ -1014,7 +1014,7 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 		float pos = reinterpret_cast<PPScrollbar*>(sender)->getBarPosition()/65536.0f;
 
 		pp_int32 visibleItems = (visibleWidth) / slotSize;
-		
+
 		float v = (float)(patternEditor->getNumChannels() - visibleItems);
 
 		if (v < 0.0f)
@@ -1039,16 +1039,16 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 					pp_int32 id;
 					PPPoint p;
 				} *metaData;
-				
+
 				metaData = (MetaData*)event->getDataPtr();
-				
+
 				PPPoint cp(metaData->p);
-				
+
 				cp.x-=location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
 				cp.y-=location.y + SCROLLBARWIDTH + font->getCharHeight() + 4;
-				
+
 				pp_int32 menuInvokeChannel = pointInChannelHeading(cp);
-				if (menuInvokeChannel != -1 && menuInvokeChannel != this->menuInvokeChannel) 
+				if (menuInvokeChannel != -1 && menuInvokeChannel != this->menuInvokeChannel)
 				{
 					PPEvent e((EEventDescriptor)metaData->id, &metaData->p, sizeof(PPPoint));
 					dispatchEvent(&e);
@@ -1060,7 +1060,7 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 					this->menuInvokeChannel = -1;
 					parentScreen->paintControl(this, false);
 				}
-				
+
 				break;
 			}
 			default:
@@ -1077,7 +1077,7 @@ pp_int32 PatternEditorControl::handleEvent(PPObject* sender, PPEvent* event)
 	if (properties.scrollMode == ScrollModeToCenter)
 	{
 		pp_int32 visibleItems = (visibleHeight) / font->getCharHeight();
-		if ((vLeftScrollbar->getBarPosition() == 65536 || 
+		if ((vLeftScrollbar->getBarPosition() == 65536 ||
 			 vRightScrollbar->getBarPosition() == 65536) &&
 			startIndex + visibleItems <= pattern->rows)
 		{
@@ -1102,10 +1102,10 @@ pp_int32 PatternEditorControl::pointInChannelHeading(PPPoint& cp)
 		pp_int32 i = (cp.x / slotSize) + startPos;
 		if (i < 0 || i > 31)
 			return -1;
-		
+
 		return i;
 	}
-	
+
 	return -1;
 }
 
@@ -1130,9 +1130,9 @@ bool PatternEditorControl::isSoloChannel(pp_int32 c)
 	for (pp_int32 j = 0; j < patternEditor->getNumChannels(); j++)
 		if (muteChannels[j])
 			i++;
-			
+
 	if (!muteChannels[c] && i == patternEditor->getNumChannels()-1)
 		return true;
-		
+
 	return false;
 }

@@ -51,7 +51,7 @@ private:
 		BrowseSamples,
 		BrowsePatterns,
 		BrowseTracks,
-		
+
 		BrowseLAST // needs to be last
 	};
 
@@ -61,20 +61,23 @@ private:
 	PPSimpleVector<PPControl>* classicViewControls;
 	ClassicViewStates classicViewState;
 	bool classicViewVisible;
-	
+
 	bool forceClassicBrowser;
+	bool enforceClassicBrowser;
 	bool moduleTypeAdjust;
 	bool sortAscending;
 	bool storePath;
+	bool specialMagic;
 
 	PPControl* lastFocusedControl;
+	PPControl* flipButton;
 
 	PPListBoxFileBrowser* listBoxFiles;
 	class PPListBox* editFieldCurrentFile;
 	class PPRadioGroup* currentActiveRadioGroup;
 
 	PPPoint radioGroupLocations[5];
-	
+
 	PPSystemString* file;
 	PPSystemString* fileFullPath;
 	PPSystemString currentPath;
@@ -86,7 +89,7 @@ private:
 #endif
 
 	PPSize fileBrowserExtent;
-	
+
 	class ColorQueryListener* colorQueryListener;
 
 public:
@@ -95,18 +98,18 @@ public:
 
 	// Derived from SectionAbstract
 	virtual pp_int32 handleEvent(PPObject* sender, PPEvent* event);
-	
+
 	virtual void init() { SectionUpperLeft::init(); }
 	virtual void init(pp_int32 x, pp_int32 y);
 	virtual void show(bool bShow);
 	virtual void update(bool repaint = true);
 
 	pp_int32 getCurrentSelectedSampleSaveType();
-	
+
 	bool isActiveEditing();
 	bool isFileBrowserVisible();
 	bool fileBrowserHasFocus();
-	
+
 	void setFileBrowserShowFocus(bool showFocus);
 
 	void selectSaveType(pp_uint32 type);
@@ -114,42 +117,43 @@ public:
 	static pp_uint32 getDefaultConfigUInt32();
 	pp_uint32 getConfigUInt32();
 	void setConfigUInt32(pp_uint32 config);
+	void setEnforceClassicBrowser(bool enforceClassicBrowser);
 
 	PPSystemString getCurrentPath();
 	void setCurrentPath(const PPSystemString& path, bool reload = true);
 	PPString getCurrentPathASCII();
 
 	void setModuleTypeAdjust(bool moduleTypeAdjust) { this->moduleTypeAdjust = moduleTypeAdjust; }
-	
+
 	bool isDiskMenuVisible() { return diskMenuVisible; }
 	void resizeInstrumentContainer();
-	
+
 	void setCycleFilenames(bool cycleFilenames);
-	
+
 	PPListBoxFileBrowser* getListBoxFiles() { return listBoxFiles; }
 
 private:
 	void prepareSection();
 
 	void showNormalView(bool bShow);
-	
+
 	void updateClassicView(bool repaint = true);
-	
+
 	void showClassicView(bool bShow);
-	
+
 	bool isNormalViewVisible();
 	bool isClassicViewVisible();
-	
+
 	void flip();
-	
+
 	void updateFilenameEditFieldExtension(ClassicViewStates viewState);
 	void updateFilenameEditField(ClassicViewStates viewState);
 	void updateFilenameEditField(const PPSystemString& fileName);
 	void updateFilenameEditFieldFromBrowser();
-	
+
 	void handleLoadOrStep();
 	void loadCurrentSelectedFile();
-	
+
 	void showOverwriteMessageBox();
 	void prepareSave();
 	void saveCurrent();
@@ -165,20 +169,20 @@ private:
 	void reload(bool repaint = true);
 
 	void updateFilter(bool repaint = true);
-	
+
 	void switchState(ClassicViewStates viewState);
 
 	void resizeBrowserVertically();
 	void resizeBrowserHorizontally();
 	void fitDirButtons();
-	
+
 	PPString getKeyFromPredefPathButton(PPControl* button);
-	
+
 	void assureExtension();
-	
+
 	// Responder should be friend
-	friend class DialogResponderDisk;		
-	
+	friend class DialogResponderDisk;
+
 	friend class Tracker;
 };
 

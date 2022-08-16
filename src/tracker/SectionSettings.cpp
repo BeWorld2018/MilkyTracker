@@ -176,6 +176,7 @@ enum ControlIDs
 	BUTTON_RESOLUTIONS_CUSTOM,
 	BUTTON_RESOLUTIONS_FULL,
 	STATICTEXT_SETTINGS_MAGNIFY,
+    STATICTEXT_SETTINGS_WINDOWED_ONLY,
 	RADIOGROUP_SETTINGS_MAGNIFY,
 	LISTBOX_COLORS,
 	SLIDER_COLOR_RED,
@@ -242,6 +243,7 @@ enum ControlIDs
 
 	CHECKBOX_SETTINGS_INVERTMWHEEL,
 	CHECKBOX_SETTINGS_INVERTMWHEELZOOM,
+	CHECKBOX_SETTINGS_SPECIALMAGIC,
 
 	// Page V (only on desktop version)
 	RADIOGROUP_SETTINGS_STOPBACKGROUNDBEHAVIOUR,
@@ -444,7 +446,7 @@ public:
 		PPCheckBox* checkBox = new PPCheckBox(CHECKBOX_SETTINGS_FORCEPOWER2BUFF, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 + 2 + 11 * 3 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(STATICTEXT_SETTINGS_FORCEPOWER2BUFF, NULL, this, PPPoint(x + 4, y2 + 2 + 11*3), "Force 2^n sizes:", checkBox, true));
-		
+
 		y2+=12;
 
 		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x + 4, y2 + 2 + 11*3), "Mixervol:", true));
@@ -482,7 +484,7 @@ public:
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_RAMPING, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x + 4, y2), "Volume ramping:", checkBox, true));
-		
+
 		//container->addControl(new PPSeperator(0, screen, PPPoint(x + 158, y+4), UPPERFRAMEHEIGHT-8, TrackerConfig::colorThemeMain, false));
 	}
 
@@ -744,40 +746,149 @@ public:
 
 };
 
-class TabPageIO_4 : public TabPage
+#ifdef __AMIGA__
+struct AmigaDriverStatInterface
 {
+	virtual const AudioDriverInterface * getCurrentAudioDriver() = 0;
+	virtual void forceRepaint() = 0;
+};
+
+class AmigaDriverStat : public PPStaticText
+{
+private:
+	AmigaDriverStatInterface * statInterface;
+	pp_uint32 dataSource;
+	pp_uint32 nFrames;
 public:
-    TabPageIO_4(pp_uint32 id, SectionSettings& sectionSettings) :
-    TabPage(id, sectionSettings)
+	pp_int32 dispatchEvent(PPEvent* event)
+	{
+		if(event->getID() == eTimer) {
+			nFrames++;
+
+			if((nFrames % 100) == 0) {
+				AudioDriverInterface * audioDriver = (AudioDriverInterface *) statInterface->getCurrentAudioDriver();
+				if(audioDriver) {
+					pp_int32 val = audioDriver->getStatValue(dataSource);
+
+					char buffer[32];
+					sprintf(buffer, "%06ld", val);
+					setText(PPString(buffer));
+
+					statInterface->forceRepaint();
+				}
+			}
+		}
+
+		return PPStaticText::dispatchEvent(event);
+	}
+
+	bool receiveTimerEvent() const
+	{
+		return true;
+	}
+
+	AmigaDriverStat(
+		pp_int32 id,
+		PPScreen* parentScreen,
+		EventListenerInterface* eventListener,
+		const PPPoint& location,
+		const PPString& text,
+		AmigaDriverStatInterface * statInterface,
+		pp_uint32 dataSource
+	)
+	: PPStaticText(id, parentScreen, eventListener, location, text)
+	, dataSource(dataSource)
+	, statInterface(statInterface)
+	, nFrames(0)
+	{
+
+	}
+
+	virtual ~AmigaDriverStat()
+	{
+
+	}
+
+};
+#endif
+
+class TabPageIO_4 : public TabPage
+#ifdef __AMIGA__
+	, AmigaDriverStatInterface
+#endif
+{
+private:
+	PlayerMaster * playerMaster;
+	PPScreen * screen;
+
+#ifdef __AMIGA__
+	AmigaDriverStat * statVBMix;
+	AmigaDriverStat * statABRCnt;
+	AmigaDriverStat * statRBFCnt;
+#endif
+
+public:
+    TabPageIO_4(pp_uint32 id, SectionSettings& sectionSettings, PlayerMaster * playerMaster)
+	: TabPage(id, sectionSettings)
+	, playerMaster(playerMaster)
+	, screen(0)
     {
     }
-    
+
+	virtual const AudioDriverInterface * getCurrentAudioDriver()
+	{
+		return playerMaster->getCurrentDriver();
+	}
+
+	virtual void forceRepaint()
+	{
+		if(screen)
+			screen->paintControl(container->getOwnerControl());
+	}
+
     virtual void init(PPScreen* screen)
     {
         pp_int32 x = 0;
         pp_int32 y = 0;
-        
+
+		this->screen = screen;
+
         container = new PPTransparentContainer(id, screen, this, PPPoint(x, y), PPSize(PageWidth,PageHeight));
-        
+
         pp_int32 x2 = x;
         pp_int32 y2 = y;
-        
+
         container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 2), "XM channel limit", true, true));
-        
+
         PPRadioGroup* radioGroup = new PPRadioGroup(RADIOGROUP_SETTINGS_XMCHANNELLIMIT, screen, this, PPPoint(x2, y2+2+11), PPSize(160, 3*14));
         radioGroup->setColor(TrackerConfig::colorThemeMain);
         radioGroup->addItem("32");
         radioGroup->addItem("64");
         radioGroup->addItem("128");
-        
+
+#ifdef __AMIGA__
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 58), "Amiga driver stats", true, true));
+
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 71), "VBMix%="));
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 82), "ABRCnt="));
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 93), "RBFCnt="));
+
+		statVBMix = new AmigaDriverStat(0, NULL, NULL, PPPoint(x2 + 61, y2 + 71), "n/a", this, 0);
+		container->addControl(statVBMix);
+		statABRCnt = new AmigaDriverStat(0, NULL, NULL, PPPoint(x2 + 61, y2 + 82), "n/a", this, 1);
+		container->addControl(statABRCnt);
+		statRBFCnt = new AmigaDriverStat(0, NULL, NULL, PPPoint(x2 + 61, y2 + 93), "n/a", this, 2);
+		container->addControl(statRBFCnt);
+#endif
+
         container->addControl(radioGroup);
     }
-    
+
     virtual void update(PPScreen* screen, TrackerSettingsDatabase* settingsDatabase, ModuleEditor& moduleEditor)
     {
         // mixer resolution
         pp_int32 v = settingsDatabase->restore("XMCHANNELLIMIT")->getIntValue();
-        
+
         switch (v) {
             case 32:
                 static_cast<PPRadioGroup*>(container->getControlByID(RADIOGROUP_SETTINGS_XMCHANNELLIMIT))->setChoice(0);
@@ -788,10 +899,10 @@ public:
             case 128:
                 static_cast<PPRadioGroup*>(container->getControlByID(RADIOGROUP_SETTINGS_XMCHANNELLIMIT))->setChoice(2);
                 break;
-                
+
         }
     }
-    
+
 };
 
 class TabPageLayout_1 : public TabPage
@@ -828,11 +939,11 @@ public:
 		PPCheckBox* checkBox = new PPCheckBox(CHECKBOX_SETTINGS_HEXCOUNT, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x + 2, y2), "Hex count:", checkBox, true));
-		
+
 		y2+=11;
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_SHOWZEROEFFECT, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
-		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x + 2, y2), "Show zero effect:", checkBox, true));		
+		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x + 2, y2), "Show zero effect:", checkBox, true));
 
 		y2+=11;
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_PROSPECTIVE, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 - 1));
@@ -1153,6 +1264,9 @@ public:
 
 		y2+=lbheight + 6;
 
+#ifdef __AMIGA__
+		container->addControl(new PPStaticText(STATICTEXT_SETTINGS_WINDOWED_ONLY, NULL, NULL, PPPoint(x2 + 2, y2), "Windowed mode only", true));
+#else
 		container->addControl(new PPStaticText(STATICTEXT_SETTINGS_MAGNIFY, NULL, NULL, PPPoint(x2 + 2, y2), "Scale:", true));
 
 		PPRadioGroup* radioGroup = new PPRadioGroup(RADIOGROUP_SETTINGS_MAGNIFY, screen, this, PPPoint(x2 + 2 + 7*8, y2 - 4), PPSize(120, 16));
@@ -1162,10 +1276,11 @@ public:
 		radioGroup->setHorizontal(true);
 		radioGroup->addItem("x1");
 		radioGroup->addItem("x2");
+		radioGroup->addItem("x3");
 		radioGroup->addItem("x4");
-		radioGroup->addItem("x8");
 
 		container->addControl(radioGroup);
+#endif
 	}
 
 	virtual void update(PPScreen* screen, TrackerSettingsDatabase* settingsDatabase, ModuleEditor& moduleEditor)
@@ -1187,25 +1302,28 @@ public:
 		if (!found)
 			static_cast<PPListBox*>(container->getControlByID(LISTBOX_SETTINGS_RESOLUTIONS))->setSelectedIndex(NUMRESOLUTIONS-1, false, false);
 
+#ifndef __AMIGA__
 		static_cast<PPStaticText*>(container->getControlByID(STATICTEXT_SETTINGS_MAGNIFY))->enable(screen->supportsScaling());
 		static_cast<PPRadioGroup*>(container->getControlByID(RADIOGROUP_SETTINGS_MAGNIFY))->enable(screen->supportsScaling());
 
 		pp_int32 screenScaleFactor = settingsDatabase->restore("SCREENSCALEFACTOR")->getIntValue();
 		pp_int32 index = 0;
+
 		switch (screenScaleFactor)
 		{
 			case 2:
 				index = 1;
 				break;
-			case 4:
+			case 3:
 				index = 2;
 				break;
-			case 8:
+			case 4:
 				index = 3;
 				break;
 		}
 
 		static_cast<PPRadioGroup*>(container->getControlByID(RADIOGROUP_SETTINGS_MAGNIFY))->setChoice(index);
+#endif
 	}
 
 };
@@ -1458,12 +1576,12 @@ public:
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_TABTONOTE, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "TAB to note:", checkBox, true));
-		
+
 		y2+=12;
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_CLICKTOCURSOR, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Click to cursor:", checkBox, true));
-		
+
 		y2+=12;
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_WRAPCURSOR, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
@@ -1491,7 +1609,7 @@ public:
 		PPCheckBoxLabel* cbLabel = new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Auto-mixdown stereo samples:", checkBox, true);
 		cbLabel->setFont(PPFont::getFont(PPFont::FONT_TINY));
 		container->addControl(cbLabel);
-		
+
 
 		y2+=10;
 
@@ -1548,6 +1666,8 @@ public:
 
 	virtual void init(PPScreen* screen)
 	{
+        PPCheckBox* checkBox;
+
 		pp_int32 x = 0;
 		pp_int32 y = 0;
 
@@ -1556,33 +1676,33 @@ public:
 		pp_int32 x2 = x;
 		pp_int32 y2 = y;
 
-		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2), "Other", true, true));
-		y2+=4+11;		
-		PPCheckBox* checkBox = new PPCheckBox(CHECKBOX_SETTINGS_INTERNALDISKBROWSER, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 2), "Other", true, true));
+		y2+=4+11;
+
+#ifndef __AMIGA__
+		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_INTERNALDISKBROWSER, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Internal browser:", checkBox, true));
-
 		y2+=12;
+
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_SHOWSPLASH, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Splash screen:", checkBox, true));
-
 		y2+=14;
+#endif
+
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_AUTOESTPLAYTIME, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 3));
 		container->addControl(checkBox);
 		PPCheckBoxLabel* cbLabel = new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Estimate playtime after load", checkBox, true);
 		cbLabel->setFont(PPFont::getFont(PPFont::FONT_TINY));
 		container->addControl(cbLabel);
-		
-
 		y2+=10;
 
-#ifndef __LOWRES__
+#if !defined(__LOWRES__) && !defined(__AMIGA__)
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_SCOPES, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Show scopes:", checkBox, true));
 		y2+=12;
-#endif
 
 		container->addControl(new PPStaticText(STATICTEXT_SETTINGS_SCOPESAPPEARANCE, NULL, NULL, PPPoint(x2 + 2, y2), "Scope Style:", true));
 
@@ -1593,8 +1713,7 @@ public:
 		radioGroup->addItem("Solid");
 		radioGroup->addItem("Smooth Lines");
 		container->addControl(radioGroup);
-
-		//container->addControl(new PPSeperator(0, screen, PPPoint(x2 + 158, y+4), UPPERFRAMEHEIGHT-8, TrackerConfig::colorThemeMain, false));
+#endif
 	}
 
 	virtual void update(PPScreen* screen, TrackerSettingsDatabase* settingsDatabase, ModuleEditor& moduleEditor)
@@ -1602,20 +1721,23 @@ public:
 		pp_int32 v = settingsDatabase->restore("AUTOESTPLAYTIME")->getIntValue();
 		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_AUTOESTPLAYTIME))->checkIt(v!=0);
 
+#ifndef __AMIGA__
 		v = settingsDatabase->restore("INTERNALDISKBROWSER")->getIntValue();
 		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_INTERNALDISKBROWSER))->checkIt(v!=0);
 
 		v = settingsDatabase->restore("SHOWSPLASH")->getIntValue();
 		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_SHOWSPLASH))->checkIt(v!=0);
+#endif
 
+#if !defined(__LOWRES__) && !defined(__AMIGA__)
 		v = settingsDatabase->restore("SCOPES")->getIntValue();
-#ifndef __LOWRES__
+
 		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_SCOPES))->checkIt(v & 1);
 
 		static_cast<PPRadioGroup*>(container->getControlByID(RADIOGROUP_SETTINGS_SCOPESAPPEARANCE))->enable((v & 1) != 0);
 		static_cast<PPStaticText*>(container->getControlByID(STATICTEXT_SETTINGS_SCOPESAPPEARANCE))->enable((v & 1) != 0);
-#endif
 		static_cast<PPRadioGroup*>(container->getControlByID(RADIOGROUP_SETTINGS_SCOPESAPPEARANCE))->setChoice(v >> 1);
+#endif
 	}
 
 };
@@ -1638,7 +1760,7 @@ public:
 		pp_int32 x2 = x;
 		pp_int32 y2 = y;
 
-		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2), "Mouse Wheel", true, true));
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2 + 2), "Mouse Wheel", true, true));
 		y2+=4+11;
 		PPCheckBox* checkBox = new PPCheckBox(CHECKBOX_SETTINGS_INVERTMWHEEL, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
 		container->addControl(checkBox);
@@ -1650,15 +1772,34 @@ public:
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Invert zoom:", checkBox, true));
 
-		y2+=12;
+		y2+=11;
+
+		// ------------------ special features -------------------
+		container->addControl(new PPSeperator(0, screen, PPPoint(x2, y2), 158, TrackerConfig::colorThemeMain, true));
+
+		y2+=3;
+
+		container->addControl(new PPStaticText(0, NULL, NULL, PPPoint(x2 + 2, y2), "Special features", true, true));
+		y2+=4+11;
+		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_SPECIALMAGIC, screen, this, PPPoint(x2 + 4 + 17 * 8 + 4, y2 - 1));
+		container->addControl(checkBox);
+		PPCheckBoxLabel* cbLabel = new PPCheckBoxLabel(0, NULL, this, PPPoint(x2 + 2, y2), "Titan's magic toolbox", checkBox, true);
+		cbLabel->setFont(PPFont::getFont(PPFont::FONT_TINY));
+		container->addControl(cbLabel);
 	}
 
 	virtual void update(PPScreen* screen, TrackerSettingsDatabase* settingsDatabase, ModuleEditor& moduleEditor)
 	{
-		pp_int32 v = settingsDatabase->restore("INVERTMWHEELZOOM")->getIntValue();
+		pp_int32 v;
+
+		v = settingsDatabase->restore("INVERTMWHEELZOOM")->getIntValue();
 		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_INVERTMWHEELZOOM))->checkIt(v!=0);
+
 		v = settingsDatabase->restore("INVERTMWHEEL")->getIntValue();
 		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_INVERTMWHEEL))->checkIt(v!=0);
+
+		v = settingsDatabase->restore("SPECIALMAGIC")->getIntValue();
+		static_cast<PPCheckBox*>(container->getControlByID(CHECKBOX_SETTINGS_SPECIALMAGIC))->checkIt(v!=0);
 	}
 };
 
@@ -1686,7 +1827,7 @@ public:
 		PPCheckBox* checkBox = new PPCheckBox(CHECKBOX_SETTINGS_LOADMODULEINNEWTAB, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 + 2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(0, NULL, this, PPPoint(x + 4, y2 + 2), PPSTR_PERIODS"in new Tab", checkBox, true));
-		
+
 		y2+=12+3;
 
 		container->addControl(new PPSeperator(0, screen, PPPoint(x2, y2), 158, TrackerConfig::colorThemeMain, true));
@@ -1707,7 +1848,7 @@ public:
 		checkBox = new PPCheckBox(CHECKBOX_SETTINGS_TABSWITCHRESUMEPLAY, screen, this, PPPoint(x + 4 + 17 * 8 + 4, y2 + 2 - 1));
 		container->addControl(checkBox);
 		container->addControl(new PPCheckBoxLabel(STATICTEXT_SETTINGS_TABSWITCHRESUMEPLAY, NULL, this, PPPoint(x + 4, y2 + 2), "Tab-switch resume", checkBox, true));
-				
+
 		//container->addControl(new PPSeperator(0, screen, PPPoint(x2 + 158, y+4), UPPERFRAMEHEIGHT-8, TrackerConfig::colorThemeMain, false));
 	}
 
@@ -1817,7 +1958,8 @@ void SectionSettings::showRestartMessageBox()
 {
 	if (tracker.settingsDatabase->restore("XRESOLUTION")->getIntValue() != tracker.settingsDatabaseCopy->restore("XRESOLUTION")->getIntValue() ||
 		tracker.settingsDatabase->restore("YRESOLUTION")->getIntValue() != tracker.settingsDatabaseCopy->restore("YRESOLUTION")->getIntValue() ||
-		tracker.settingsDatabase->restore("SCREENSCALEFACTOR")->getIntValue() != tracker.settingsDatabaseCopy->restore("SCREENSCALEFACTOR")->getIntValue())
+		tracker.settingsDatabase->restore("SCREENSCALEFACTOR")->getIntValue() != tracker.settingsDatabaseCopy->restore("SCREENSCALEFACTOR")->getIntValue() ||
+		tracker.settingsDatabase->restore("SPECIALMAGIC")->getIntValue() != tracker.settingsDatabaseCopy->restore("SPECIALMAGIC")->getIntValue())
 	{
 		SystemMessage message(*tracker.screen, SystemMessage::MessageResChangeRestart);
 		message.show();
@@ -2225,6 +2367,15 @@ pp_int32 SectionSettings::handleEvent(PPObject* sender, PPEvent* event)
 				break;
 			}
 
+			case CHECKBOX_SETTINGS_SPECIALMAGIC:
+			{
+				if (event->getID() != eCommand)
+					break;
+
+				tracker.settingsDatabase->store("SPECIALMAGIC", (pp_int32)reinterpret_cast<PPCheckBox*>(sender)->isChecked());
+				break;
+			}
+
 			//case CHECKBOX_SETTINGS_FOLLOWSONG:
 			//{
 			//	if (event->getID() != eCommand)
@@ -2556,11 +2707,11 @@ pp_int32 SectionSettings::handleEvent(PPObject* sender, PPEvent* event)
 				tracker.ensureSongPlaying(true);
 				break;
 			}
-                
+
             case RADIOGROUP_SETTINGS_XMCHANNELLIMIT:
             {
                 pp_int32 v = reinterpret_cast<PPRadioGroup*>(sender)->getChoice();
-                
+
                 ASSERT(v >= 0 && v < 3);
                 tracker.settingsDatabase->store("XMCHANNELLIMIT", 1 << (v + 5));
                 update();
@@ -2610,7 +2761,21 @@ pp_int32 SectionSettings::handleEvent(PPObject* sender, PPEvent* event)
 			case RADIOGROUP_SETTINGS_MAGNIFY:
 			{
 				pp_int32 v = reinterpret_cast<PPRadioGroup*>(sender)->getChoice();
-				tracker.settingsDatabase->store("SCREENSCALEFACTOR", 1 << v);
+				pp_uint32 scale = 1;
+
+				switch(v) {
+				case 1:
+					scale = 2;
+					break;
+				case 2:
+					scale = 3;
+					break;
+				case 3:
+					scale = 4;
+					break;
+				}
+
+				tracker.settingsDatabase->store("SCREENSCALEFACTOR", scale);
 				update();
 				break;
 			}
@@ -2775,7 +2940,7 @@ void SectionSettings::init(pp_int32 x, pp_int32 y)
 	tabPages.get(0)->add(new TabPageIO_2(PAGE_IO_2, *this));
 	tabPages.get(0)->add(new TabPageIO_3(PAGE_IO_3, *this));
 #ifndef __LOWRES__
-    tabPages.get(0)->add(new TabPageIO_4(PAGE_IO_4, *this));
+    tabPages.get(0)->add(new TabPageIO_4(PAGE_IO_4, *this, tracker.playerMaster));
 #endif
 
 	tabPages.get(1)->add(new TabPageLayout_1(PAGE_LAYOUT_1, *this));
@@ -2990,7 +3155,6 @@ void SectionSettings::update(bool repaint/* = true*/)
 			}
 
 	}
-
 
 	tracker.screen->paintControl(sectionContainer, false);
 
@@ -3353,7 +3517,6 @@ void SectionSettings::retrieveDisplayResolution()
 
 	if (size.width > 0 && size.height > 0)
 	{
-
 		if (size.width < MINWIDTH)
 			size.width = MINWIDTH;
 		if (size.height < MINHEIGHT)

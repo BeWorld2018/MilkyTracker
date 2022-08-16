@@ -39,6 +39,11 @@
 #define __MIXABLE_H__
 
 #include "MilkyPlayTypes.h"
+#include "MixerProxy.h"
+
+#define MAX_DIRECTOUT_CHANNELS 16
+
+class MixerProxy;
 
 struct Mixable
 {
@@ -46,7 +51,7 @@ struct Mixable
 	{
 	}
 
-	virtual void mix(mp_sint32* buffer, mp_uint32 numSamples) = 0;			
+	virtual void mix(MixerProxy * mixerProxy) = 0;
 };
 
 #endif

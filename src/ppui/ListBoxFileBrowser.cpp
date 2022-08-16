@@ -27,12 +27,12 @@
  *  Created by Peter Barth on 19.10.06.
  *
  */
- 
+
 #include "ListBoxFileBrowser.h"
 #include "Screen.h"
 #include "PPPathFactory.h"
 
-PPListBoxFileBrowser::PPListBoxFileBrowser(pp_int32 id, PPScreen* parentScreen, EventListenerInterface* eventListener, 
+PPListBoxFileBrowser::PPListBoxFileBrowser(pp_int32 id, PPScreen* parentScreen, EventListenerInterface* eventListener,
 										   const PPPoint& location, const PPSize& size) :
 	PPListBox(id, parentScreen, eventListener, location, size, true, false, true, true),
 	filePrefix("<FILE> "), fileSuffix(""),
@@ -53,9 +53,9 @@ PPListBoxFileBrowser::~PPListBoxFileBrowser()
 pp_int32 PPListBoxFileBrowser::dispatchEvent(PPEvent* event)
 {
 	if (event->getID() == eKeyChar && cycleFilenames)
-	{	
-		pp_uint16 keyCode = *((pp_uint16*)event->getDataPtr());		
-			
+	{
+		pp_uint16 keyCode = *((pp_uint16*)event->getDataPtr());
+
 		if (keyCode < 255)
 			cycle((char)keyCode);
 	}
@@ -83,13 +83,13 @@ void PPListBoxFileBrowser::addExtension(const PPString& ext, const PPString& des
 
 
 PPSystemString PPListBoxFileBrowser::getCurrentPathAsString() const
-{ 
-	return currentPath->getCurrent(); 
+{
+	return currentPath->getCurrent();
 }
 
 PPString PPListBoxFileBrowser::getCurrentPathAsASCIIString() const
 {
-	char* nameASCIIZ = currentPath->getCurrent().toASCIIZ();	
+	char* nameASCIIZ = currentPath->getCurrent().toASCIIZ();
 	PPString result(nameASCIIZ);
 	delete[] nameASCIIZ;
 	return result;
@@ -102,7 +102,9 @@ void PPListBoxFileBrowser::refreshFiles()
 
 const PPPathEntry* PPListBoxFileBrowser::getPathEntry(pp_int32 index) const
 {
-	return pathEntries.get(index);
+	if(index >= 0 && index < pathEntries.size())
+		return pathEntries.get(index);
+	return NULL;
 }
 
 bool PPListBoxFileBrowser::canGotoHome() const
@@ -115,14 +117,14 @@ void PPListBoxFileBrowser::gotoHome()
 	PPSystemString before = currentPath->getCurrent();
 	currentPath->gotoHome();
 	PPSystemString after = currentPath->getCurrent();
-	
+
 	if (after.compareTo(before) != 0)
 	{
-		history.Push(before); 
-		history.Push(after); 
-		history.Pop(); 
-	} 
-	
+		history.Push(before);
+		history.Push(after);
+		history.Pop();
+	}
+
 	refreshFiles();
 }
 
@@ -136,13 +138,13 @@ void PPListBoxFileBrowser::gotoRoot()
 	PPSystemString before = currentPath->getCurrent();
 	currentPath->gotoRoot();
 	PPSystemString after = currentPath->getCurrent();
-	
+
 	if (after.compareTo(before) != 0)
 	{
-		history.Push(before); 
-		history.Push(after); 
-		history.Pop(); 
-	} 
+		history.Push(before);
+		history.Push(after);
+		history.Pop();
+	}
 
 	refreshFiles();
 }
@@ -160,11 +162,11 @@ void PPListBoxFileBrowser::gotoParent()
 
 	if (after.compareTo(before) != 0)
 	{
-		history.Push(before); 
-		history.Push(after); 
-		history.Pop(); 
-	} 
-	
+		history.Push(before);
+		history.Push(after);
+		history.Pop();
+	}
+
 	refreshFiles();
 }
 
@@ -174,11 +176,10 @@ bool PPListBoxFileBrowser::currentSelectionIsFile()
 	return entry ? entry->isFile() : false;
 }
 
-bool PPListBoxFileBrowser::stepIntoCurrentSelection()
+int PPListBoxFileBrowser::stepIntoCurrentSelection()
 {
 	const PPPathEntry* entry = getPathEntry(PPListBox::getSelectedIndex());
-	
-	return entry ? stepInto(*entry) : false;
+	return entry ? (stepInto(*entry) ? 1 : 0) : -1;
 }
 
 bool PPListBoxFileBrowser::stepInto(const PPPathEntry& entry)
@@ -190,26 +191,26 @@ bool PPListBoxFileBrowser::stepInto(const PPPathEntry& entry)
 		if (!currentPath->stepInto(entry.getName()))
 			return false;
 		PPSystemString after = currentPath->getCurrent();
-		
+
 		if (after.compareTo(before) != 0)
 		{
-			history.Push(before); 
-			history.Push(after); 
-			history.Pop(); 
-		} 
-		
+			history.Push(before);
+			history.Push(after);
+			history.Pop();
+		}
+
 		refreshFiles();
 		return true;
 	}
-	
+
 	return false;
 }
 
 bool PPListBoxFileBrowser::gotoPath(const PPSystemString& path, bool reload/* = true*/)
 {
 	bool res = currentPath->change(path);
-	if (res && reload) 
-		refreshFiles(); 
+	if (res && reload)
+		refreshFiles();
 	return res;
 }
 
@@ -222,7 +223,7 @@ bool PPListBoxFileBrowser::canPrev() const
 void PPListBoxFileBrowser::prev()
 {
 	if (history.IsEmpty()) return;
-	
+
 	gotoPath(*history.Pop());
 }
 
@@ -235,7 +236,7 @@ bool PPListBoxFileBrowser::canNext() const
 void PPListBoxFileBrowser::next()
 {
 	if (history.IsTop()) return;
-	
+
 	gotoPath(*history.Advance());
 }
 
@@ -267,26 +268,26 @@ void PPListBoxFileBrowser::setDirectorySuffixPathSeperator()
 void PPListBoxFileBrowser::iterateFilesInFolder()
 {
 	pathEntries.clear();
-	
+
 	const PPPathEntry* entry = currentPath->getFirstEntry();
 	while (entry)
 	{
 		if (!entry->isHidden() && checkExtension(*entry))
 		{
-			pathEntries.add(entry->clone());			
+			pathEntries.add(entry->clone());
 		}
 		entry = currentPath->getNextEntry();
 	}
-	
+
 	sortFileList();
-	
+
 	buildFileList();
 }
 
 void PPListBoxFileBrowser::buildFileList()
 {
 	PPListBox::clear();
-	
+
 	for (pp_int32 i = 0; i < pathEntries.size(); i++)
 	{
 		const PPPathEntry* entry = pathEntries.get(i);
@@ -294,9 +295,9 @@ void PPListBoxFileBrowser::buildFileList()
 		PPString str(entry->isDirectory() ? directoryPrefix : filePrefix);
 		str.append(nameASCIIZ);
 		str.append(entry->isDirectory() ? directorySuffix : fileSuffix);
-		
+
 		appendFileSize(str, *entry);
-		
+
 		PPListBox::addItem(str);
 		delete[] nameASCIIZ;
 	}
@@ -309,7 +310,7 @@ void PPListBoxFileBrowser::appendFileSize(PPString& name, const PPPathEntry& ent
 		pp_int64 size = entry.getSize();
 
 		char buffer[1024];
-		
+
 		if (size < 1024)
 			sprintf(buffer, " (%db)", (pp_int32)size);
 		else if (size < 1024*1024)
@@ -322,7 +323,7 @@ void PPListBoxFileBrowser::appendFileSize(PPString& name, const PPPathEntry& ent
 			size>>=20;
 			sprintf(buffer, " (%dmb)", (pp_int32)size);
 		}
-	
+
 		name.append(buffer);
 	}
 }
@@ -334,14 +335,14 @@ void PPListBoxFileBrowser::sortFileList()
 	PPPathEntry** tempEntries;
 	PPPathEntry** drives;
 	PPPathEntry** parents;
-	
+
 	pp_int32 numEntries = pathEntries.size();
-	tempEntries = new PPPathEntry*[numEntries];	
-	drives = new PPPathEntry*[numEntries];	
-	parents = new PPPathEntry*[numEntries];	
+	tempEntries = new PPPathEntry*[numEntries];
+	drives = new PPPathEntry*[numEntries];
+	parents = new PPPathEntry*[numEntries];
 	//for (i = 0; i < numEntries; i++)
 	//	tempEntries[i] = pathEntries.get(i)->clone();
-	
+
 	pp_int32 numDrives = 0;
 	pp_int32 numParents = 0;
 	pp_int32 content = 0;
@@ -349,39 +350,39 @@ void PPListBoxFileBrowser::sortFileList()
 	{
 		if (pathEntries.get(i)->isParent())
 		{
-			parents[numParents] = pathEntries.get(i)->clone();			
+			parents[numParents] = pathEntries.get(i)->clone();
 			numParents++;
 		}
 		else if (pathEntries.get(i)->isDrive())
 		{
-			drives[numDrives] = pathEntries.get(i)->clone();			
+			drives[numDrives] = pathEntries.get(i)->clone();
 			numDrives++;
 		}
-		else 
+		else
 		{
 			tempEntries[content] = pathEntries.get(i)->clone();
 			content++;
 		}
 	}
-	
-	
+
+
 	PPPathEntry::PathSortRuleInterface* sortRules[NumSortRules];
-	
+
 	PPPathEntry::PathSortByFileRule sortByFileRule;
 	PPPathEntry::PathSortBySizeRule sortBySizeRule;
 	PPPathEntry::PathSortByExtRule sortByExtRule;
-	
+
 	sortRules[0] = &sortByFileRule;
 	sortRules[1] = &sortBySizeRule;
 	sortRules[2] = &sortByExtRule;
-	
+
 	if (content)
 		PPPathEntry::sort(tempEntries, 0, content-1, *sortRules[sortType], !sortAscending);
 	if (numDrives)
 		PPPathEntry::sort(drives, 0, numDrives-1, *sortRules[0], false);
-	
+
 	pathEntries.clear();
-	
+
 	for (i = 0; i < numParents; i++)
 	{
 		pathEntries.add(parents[i]->clone());
@@ -393,13 +394,13 @@ void PPListBoxFileBrowser::sortFileList()
 		pathEntries.add(tempEntries[i]->clone());
 		delete tempEntries[i];
 	}
-	
+
 	for (i = 0; i < numDrives; i++)
 	{
 		pathEntries.add(drives[i]->clone());
 		delete drives[i];
 	}
-	
+
 	delete[] parents;
 	delete[] drives;
 	delete[] tempEntries;
@@ -408,24 +409,24 @@ void PPListBoxFileBrowser::sortFileList()
 void PPListBoxFileBrowser::cycle(char chr)
 {
 	pp_int32 currentIndex = PPListBox::getSelectedIndex();
-	
+
 	PPSystemString prefix(chr);
 	prefix.toUpper();
-	
+
 	pp_uint32 j = currentIndex+1;
 	for (pp_int32 i = 0; i < pathEntries.size(); i++, j++)
 	{
 		PPSystemString str = pathEntries.get(j % pathEntries.size())->getName();
 		str.toUpper();
-		
+
 		if (str.startsWith(prefix))
 		{
 			PPListBox::setSelectedIndex(j % pathEntries.size(), false);
-			
+
 			pp_int32 selectionIndex = PPListBox::getSelectedIndex();
 			PPEvent e(eSelection, &selectionIndex, sizeof(selectionIndex));
 			eventListener->handleEvent(reinterpret_cast<PPObject*>(this), &e);
-			
+
 			parentScreen->paintControl(this);
 			break;
 		}
@@ -438,7 +439,7 @@ bool PPListBoxFileBrowser::checkExtension(const PPPathEntry& entry)
 		return true;
 
 	bool res = false;
-	
+
 	for (pp_int32 i = 0; i < items.size(); i++)
 	{
 		PPSystemString sysStr(items.get(i)->extension);

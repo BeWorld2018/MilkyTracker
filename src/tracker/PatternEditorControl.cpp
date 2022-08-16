@@ -33,13 +33,15 @@
 #include "KeyBindings.h"
 #include "DialogBase.h"
 #include "PPUIConfig.h"
+#include "PlayerMaster.h"
+#include "ResamplerHelper.h"
 
 #include "TrackerConfig.h"
 
 #define SCROLLBARWIDTH  SCROLLBUTTONSIZE
 
-PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, EventListenerInterface* eventListener, 
-										   const PPPoint& location, const PPSize& size, bool border/*= true*/) :
+PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, EventListenerInterface* eventListener,
+										   const PPPoint& location, const PPSize& size, PlayerMaster * playerMaster, bool border/*= true*/) :
 	PPControl(id, parentScreen, eventListener, location, size),
 	borderColor(&TrackerConfig::colorThemeMain),
 	cursorColor(&TrackerConfig::colorPatternEditorCursorLine),
@@ -51,7 +53,8 @@ PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, 
 	eventKeyDownBindingsMilkyTracker(NULL), scanCodeBindingsMilkyTracker(NULL), eventKeyDownBindingsFastTracker(NULL), scanCodeBindingsFastTracker(NULL),
 	patternEditor(NULL), module(NULL), pattern(NULL),
 	ppreCursor(NULL),
-	lastAction(RMouseDownActionInvalid), RMouseDownInChannelHeading(-1)
+	lastAction(RMouseDownActionInvalid), RMouseDownInChannelHeading(-1),
+	playerMaster(playerMaster)
 {
 	// default color
 	bgColor.r = 0;
@@ -60,14 +63,14 @@ PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, 
 
 	vLeftScrollbar = new PPScrollbar(0, parentScreen, this, PPPoint(location.x, location.y), size.height, false);
 	vRightScrollbar = new PPScrollbar(1, parentScreen, this, PPPoint(location.x + size.width - SCROLLBARWIDTH, location.y), size.height, false);
-	hTopScrollbar = new PPScrollbar(2, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y), size.width - SCROLLBARWIDTH*2, true);		
+	hTopScrollbar = new PPScrollbar(2, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y), size.width - SCROLLBARWIDTH*2, true);
 	hBottomScrollbar = new PPScrollbar(3, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y + size.height - SCROLLBARWIDTH), size.width - SCROLLBARWIDTH*2, true);
-	
+
 	caughtControl = NULL;
 	controlCaughtByLMouseButton = controlCaughtByRMouseButton = false;
 	pattern = NULL;
 
-	startIndex = 0;	
+	startIndex = 0;
 	startPos = 0;
 
 	songPos.orderListIndex = songPos.row = -1;
@@ -75,12 +78,12 @@ PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, 
 	startSelection = false;
 
 	// assuming false is zero :)
-	memset(muteChannels, 0, sizeof(muteChannels));	
+	memset(muteChannels, 0, sizeof(muteChannels));
 	memset(recChannels, 0 ,sizeof(recChannels));
 
 	// context menu
 	editMenuControl = new PPContextMenu(4, parentScreen, this, PPPoint(0,0), TrackerConfig::colorThemeMain, false, PPFont::getFont(PPFont::FONT_SYSTEM));
-	
+
 	editMenuControl->addEntry("Mute channel", MenuCommandIDMuteChannel);
 	editMenuControl->addEntry("Solo channel", MenuCommandIDSoloChannel);
 	editMenuControl->addEntry("Unmute all", MenuCommandIDUnmuteAll);
@@ -101,7 +104,7 @@ PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, 
 	editMenuControl->setNotifyParentOnHide(true);
 
 	initKeyBindings();
-	
+
 #ifdef __LOWRES__
 	setFont(PPFont::getFont(PPFont::FONT_TINY));
 	switchEditMode(EditModeMilkyTracker);
@@ -109,9 +112,9 @@ PatternEditorControl::PatternEditorControl(pp_int32 id, PPScreen* parentScreen, 
 	setFont(PPFont::getFont(PPFont::FONT_SYSTEM));
 	switchEditMode(EditModeFastTracker);
 #endif
-		
+
 	setRecordMode(false);
-	
+
 	transposeHandlerResponder = new TransposeHandlerResponder(*this);
 	dialog = NULL;
 }
@@ -121,13 +124,13 @@ PatternEditorControl::~PatternEditorControl()
 	if (patternEditor)
 		patternEditor->removeNotificationListener(this);
 
-	delete vLeftScrollbar;	
+	delete vLeftScrollbar;
 	delete vRightScrollbar;
 	delete hTopScrollbar;
 	delete hBottomScrollbar;
 
 	delete editMenuControl;
-	
+
 	delete eventKeyDownBindingsMilkyTracker;
 	delete scanCodeBindingsMilkyTracker;
 	delete eventKeyDownBindingsFastTracker;
@@ -140,9 +143,9 @@ PatternEditorControl::~PatternEditorControl()
 void PatternEditorControl::setFont(PPFont* font)
 {
 	this->font = font;
-	
+
 	adjustExtents();
-	
+
 	if (editMenuControl->getSize().width < slotSize)
 		editMenuControl->setFont(font);
 	else
@@ -154,19 +157,19 @@ void PatternEditorControl::setFont(PPFont* font)
 void PatternEditorControl::setSize(const PPSize& size)
 {
 	PPControl::setSize(size);
-	
-	visibleWidth = size.width - (getRowCountWidth() + 4) - SCROLLBARWIDTH*2;	
+
+	visibleWidth = size.width - (getRowCountWidth() + 4) - SCROLLBARWIDTH*2;
 	visibleHeight = size.height - (font->getCharHeight() + 4) - SCROLLBARWIDTH*2;
 
 	delete vLeftScrollbar;
 	delete vRightScrollbar;
 	delete hTopScrollbar;
 	delete hBottomScrollbar;
-	
+
 	vLeftScrollbar = new PPScrollbar(0, parentScreen, this, PPPoint(location.x, location.y), size.height, false);
 	vRightScrollbar = new PPScrollbar(1, parentScreen, this, PPPoint(location.x + size.width - SCROLLBARWIDTH, location.y), size.height, false);
 	hTopScrollbar = new PPScrollbar(2, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y), size.width - SCROLLBARWIDTH*2, true);
-	hBottomScrollbar = new PPScrollbar(3, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y + size.height - SCROLLBARWIDTH), size.width - SCROLLBARWIDTH*2, true);			
+	hBottomScrollbar = new PPScrollbar(3, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y + size.height - SCROLLBARWIDTH), size.width - SCROLLBARWIDTH*2, true);
 
 	adjustScrollBarSizes();
 	assureCursorVisible();
@@ -176,18 +179,18 @@ void PatternEditorControl::setLocation(const PPPoint& location)
 {
 	PPControl::setLocation(location);
 
-	visibleWidth = size.width - (getRowCountWidth() + 4) - SCROLLBARWIDTH*2;	
+	visibleWidth = size.width - (getRowCountWidth() + 4) - SCROLLBARWIDTH*2;
 	visibleHeight = size.height - (font->getCharHeight() + 4) - SCROLLBARWIDTH*2;
 
 	delete vLeftScrollbar;
 	delete vRightScrollbar;
 	delete hTopScrollbar;
 	delete hBottomScrollbar;
-	
+
 	vLeftScrollbar = new PPScrollbar(0, parentScreen, this, PPPoint(location.x, location.y), size.height, false);
 	vRightScrollbar = new PPScrollbar(1, parentScreen, this, PPPoint(location.x + size.width - SCROLLBARWIDTH, location.y), size.height, false);
 	hTopScrollbar = new PPScrollbar(2, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y), size.width - SCROLLBARWIDTH*2, true);
-	hBottomScrollbar = new PPScrollbar(3, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y + size.height - SCROLLBARWIDTH), size.width - SCROLLBARWIDTH*2, true);			
+	hBottomScrollbar = new PPScrollbar(3, parentScreen, this, PPPoint(location.x + SCROLLBARWIDTH, location.y + size.height - SCROLLBARWIDTH), size.width - SCROLLBARWIDTH*2, true);
 
 	adjustScrollBarSizes();
 	assureCursorVisible();
@@ -225,7 +228,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 	// adjust bright color
 	bCursor.scaleFixed(87163);
 
-	g->setRect(location.x+SCROLLBARWIDTH, location.y+SCROLLBARWIDTH, 
+	g->setRect(location.x+SCROLLBARWIDTH, location.y+SCROLLBARWIDTH,
 			   location.x + size.width - SCROLLBARWIDTH, location.y + size.height - SCROLLBARWIDTH);
 
 	g->setColor(bgColor);
@@ -250,7 +253,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 	selectionStart = patternEditor->getSelection().start;
 	selectionEnd = patternEditor->getSelection().end;
 
-	PatternEditorTools::flattenSelection(selectionStart, selectionEnd);	
+	PatternEditorTools::flattenSelection(selectionStart, selectionEnd);
 
 	// only entire instrument column is allowed
 	if (selectionStart.inner >= 1 && selectionStart.inner<=2)
@@ -271,10 +274,10 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 	// ;----------------- some constants
 	const pp_uint32 fontCharWidth3x = font->getCharWidth()*3 + 1;
 	const pp_uint32 fontCharWidth2x = font->getCharWidth()*2 + 1;
-	const pp_uint32 fontCharWidth1x = font->getCharWidth()*1 + 1;	
-	
+	const pp_uint32 fontCharWidth1x = font->getCharWidth()*1 + 1;
+
 	PatternTools* patternTools = &this->patternTools;
-	
+
 	// ;----------------- Little adjustment for scrolling in center
 	if (properties.scrollMode == ScrollModeToCenter)
 	{
@@ -284,7 +287,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 
 	// ;----------------- start painting rows
 	pp_int32 startx = location.x + SCROLLBARWIDTH + getRowCountWidth() + 4;
-	
+
 	pp_int32 previousPatternIndex = currentOrderlistIndex;
 	pp_int32 previousRowIndex = 0;
 
@@ -295,14 +298,14 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 
 	TXMPattern* pattern = this->pattern;
 
-	// ----------------- colors ----------------- 
+	// ----------------- colors -----------------
 	PPColor noteColor = TrackerConfig::colorPatternEditorNote;
 	PPColor insColor = TrackerConfig::colorPatternEditorInstrument;
 	PPColor volColor = TrackerConfig::colorPatternEditorVolume;
 	PPColor effColor = TrackerConfig::colorPatternEditorEffect;
 	PPColor opColor = TrackerConfig::colorPatternEditorOperand;
 	PPColor hiLightPrimary = TrackerConfig::colorHighLight_1;
-	PPColor hiLightSecondary = TrackerConfig::colorHighLight_2;	
+	PPColor hiLightSecondary = TrackerConfig::colorHighLight_2;
 	PPColor hiLightPrimaryRow = TrackerConfig::colorRowHighLight_1;
 	PPColor hiLightSecondaryRow = TrackerConfig::colorRowHighLight_2;
 
@@ -321,7 +324,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 		// rows are already in invisible area => abort
 		if (py >= location.y + size.height)
 			break;
-			
+
 		pp_int32 row = i;
 
 		if (properties.prospective && properties.scrollMode == ScrollModeStayInCenter && currentOrderlistIndex != -1)
@@ -336,7 +339,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 					{
 						pattern = &module->phead[module->header.ord[previousPatternIndex]];
 						previousRowIndex = pattern->rows-1;
-						
+
 						noteColor.set(TrackerConfig::colorThemeMain.r, TrackerConfig::colorThemeMain.g, TrackerConfig::colorThemeMain.b);
 						insColor = volColor = effColor = opColor = noteColor;
 					}
@@ -345,7 +348,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 						continue;
 					}
 				}
-				
+
 				songPosOrderListIndex = previousPatternIndex;
 				row = previousRowIndex;
 			}
@@ -359,12 +362,12 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 					{
 						pattern = &module->phead[module->header.ord[nextPatternIndex]];
 						nextRowIndex = 0;
-						
+
 						// Outside current range display colors of main theme
 						noteColor.set(TrackerConfig::colorThemeMain.r, TrackerConfig::colorThemeMain.g, TrackerConfig::colorThemeMain.b);
 						insColor = volColor = effColor = opColor = noteColor;
 					}
-					else 
+					else
 					{
 						continue;
 					}
@@ -373,7 +376,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 				{
 					continue;
 				}
-				
+
 				songPosOrderListIndex = nextPatternIndex;
 				row = nextRowIndex;
 			}
@@ -381,7 +384,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 			{
 				songPosOrderListIndex = currentOrderlistIndex;
 				pattern = this->pattern;
-				
+
 				// inside current range display colors as usual
 				noteColor = TrackerConfig::colorPatternEditorNote;
 				insColor = TrackerConfig::colorPatternEditorInstrument;
@@ -401,17 +404,17 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 		// draw rows
 		if (!(i % properties.highlightSpacingPrimary) && properties.highLightRowPrimary)
 		{
-			g->setColor(hiLightPrimaryRow);			
+			g->setColor(hiLightPrimaryRow);
 			for (pp_int32 k = 0; k < (pp_int32)font->getCharHeight(); k++)
 				g->drawHLine(startx - (getRowCountWidth() + 4), startx+visibleWidth, py + k);
 		}
 		else if (!(i % properties.highlightSpacingSecondary) && properties.highLightRowSecondary)
 		{
-			g->setColor(hiLightSecondaryRow);			
+			g->setColor(hiLightSecondaryRow);
 			for (pp_int32 k = 0; k < (pp_int32)font->getCharHeight(); k++)
 				g->drawHLine(startx - (getRowCountWidth() + 4), startx+visibleWidth, py + k);
 		}
-		
+
 		// draw position line
 		if ((row == songPos.row && songPosOrderListIndex == songPos.orderListIndex) ||
 			(i >= 0 && i <= pattern->rows - 1 && i == songPos.row && songPos.orderListIndex == -1))
@@ -425,16 +428,16 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 		// draw cursor line
 		if (i == cursor.row)
 		{
-			g->setColor(bCursor);			
+			g->setColor(bCursor);
 			g->drawHLine(startx - (getRowCountWidth() + 4), startx+visibleWidth, py - 1);
-			g->setColor(dCursor);			
+			g->setColor(dCursor);
 			g->drawHLine(startx - (getRowCountWidth() + 4), startx+visibleWidth, py + (pp_int32)font->getCharHeight());
 
-			g->setColor(lineColor);			
+			g->setColor(lineColor);
 			for (pp_int32 k = 0; k < (pp_int32)font->getCharHeight(); k++)
 				g->drawHLine(startx - (getRowCountWidth() + 4), startx+visibleWidth, py + k);
 		}
-		
+
 		// draw rows
 		if (!(i % properties.highlightSpacingPrimary))
 			g->setColor(hiLightPrimary);
@@ -447,7 +450,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 			PatternTools::convertToHex(name, myMod(row, pattern->rows), properties.prospective ? 2 : PatternTools::getHexNumDigits(pattern->rows-1));
 		else
 			PatternTools::convertToDec(name, myMod(row, pattern->rows), properties.prospective ? 3 : PatternTools::getDecNumDigits(pattern->rows-1));
-		
+
 		g->drawString(name, px, py);
 
 		// draw channels
@@ -455,11 +458,11 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 		{
 
 			pp_int32 px = (location.x + (j-startPos) * slotSize + SCROLLBARWIDTH) + (getRowCountWidth() + 4);
-			
+
 			// columns are already in invisible area => abort
 			if (px >= location.x + size.width)
 				break;
-			
+
 			pp_int32 py = location.y + SCROLLBARWIDTH;
 
 			if (menuInvokeChannel == j)
@@ -469,12 +472,12 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 
 			{
 				PPColor nsdColor = g->getColor(), nsbColor = g->getColor();
-				
+
 				if (menuInvokeChannel != j)
 				{
 					// adjust not so dark color
 					nsdColor.scaleFixed(50000);
-					
+
 					// adjust bright color
 					nsbColor.scaleFixed(80000);
 				}
@@ -482,16 +485,16 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 				{
 					// adjust not so dark color
 					nsdColor.scaleFixed(30000);
-					
+
 					// adjust bright color
 					nsbColor.scaleFixed(60000);
 				}
-				
+
 				PPRect rect(px, py, px+slotSize, py + font->getCharHeight()+1);
-				g->fillVerticalShaded(rect, nsbColor, nsdColor, false);
-				
+				g->fillVerticalShaded(rect, nsbColor, nsdColor, false, g->getColor());
+
 			}
-			
+
 			if (muteChannels[j])
 			{
 				g->setColor(128, 128, 128);
@@ -502,22 +505,41 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 					g->setColor(hiLightPrimary);
 				else
 					g->setColor(textColor);
-					
-				if (j == menuInvokeChannel)
-				{
-					PPColor col = g->getColor();
-					col.r = textColor.r - col.r;
-					col.g = textColor.g - col.g;
-					col.b = textColor.b - col.b;
-					col.clamp();
-					g->setColor(col);
+
+				if (!g->needsPalette()) {
+					if (j == menuInvokeChannel)
+					{
+						PPColor col = g->getColor();
+						col.r = textColor.r - col.r;
+						col.g = textColor.g - col.g;
+						col.b = textColor.b - col.b;
+						col.clamp();
+						g->setColor(col);
+					}
 				}
 			}
 
 			sprintf(name, "%i", j+1);
 
-			if (muteChannels[j])
+			// Collect channel options
+			bool channelMuted = muteChannels[j],
+				 channelUnsupported = false;
+
+			if (playerMaster) {
+				AudioDriverInterface * audioDriver = (AudioDriverInterface *) playerMaster->getCurrentDriver();
+				if (audioDriver && audioDriver->isMultiChannel()) {
+					mp_sint32 maxChannels = audioDriver->getChannels();
+					if (maxChannels >= 0 && j >= maxChannels)
+						channelUnsupported = true;
+				}
+			}
+
+			if (channelMuted && channelUnsupported)
+				strcat(name, " <M,NO>");
+			else if (channelMuted)
 				strcat(name, " <Mute>");
+			else if (channelUnsupported)
+				strcat(name, " <NoOut>");
 
 			g->drawString(name, px + (slotSize>>1)-(((pp_int32)strlen(name)*font->getCharWidth())>>1), py+1);
 		}
@@ -525,7 +547,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 		for (j = startPos; j < numVisibleChannels; j++)
 		{
 			pp_int32 px = (j-startPos) * slotSize + startx;
-			
+
 			// columns are already in invisible area => abort
 			if (px >= location.x + size.width)
 				break;
@@ -534,28 +556,30 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 				j <= selectionEnd.channel && i <= selectionEnd.row && i < this->pattern->rows)
 			{
 				g->setColor(*selectionColor);
-				
-				if ((row == songPos.row && songPosOrderListIndex == songPos.orderListIndex) ||
-					(i >= 0 && i <= pattern->rows - 1 && i == songPos.row && songPos.orderListIndex == -1))
-				{
-					PPColor c = g->getColor();
-					c.r = (TrackerConfig::colorThemeMain.r + c.r)>>1;
-					c.g = (TrackerConfig::colorThemeMain.g + c.g)>>1;
-					c.b = (TrackerConfig::colorThemeMain.b + c.b)>>1;
-					c.clamp();
-					g->setColor(c);
+
+				if(!g->needsPalette()) {
+					if ((row == songPos.row && songPosOrderListIndex == songPos.orderListIndex) ||
+						(i >= 0 && i <= pattern->rows - 1 && i == songPos.row && songPos.orderListIndex == -1))
+					{
+						PPColor c = g->getColor();
+						c.r = (TrackerConfig::colorThemeMain.r + c.r)>>1;
+						c.g = (TrackerConfig::colorThemeMain.g + c.g)>>1;
+						c.b = (TrackerConfig::colorThemeMain.b + c.b)>>1;
+						c.clamp();
+						g->setColor(c);
+					}
+
+					if (i == cursor.row)
+					{
+						PPColor c = g->getColor();
+						c.r+=lineColor.r;
+						c.g+=lineColor.g;
+						c.b+=lineColor.b;
+						c.clamp();
+						g->setColor(c);
+					}
 				}
-				
-				if (i == cursor.row)
-				{
-					PPColor c = g->getColor();
-					c.r+=lineColor.r;
-					c.g+=lineColor.g;
-					c.b+=lineColor.b;
-					c.clamp();
-					g->setColor(c);
-				}
-				
+
 				if (selectionStart.channel == selectionEnd.channel && j == selectionStart.channel)
 				{
 					pp_int32 startx = cursorPositions[selectionStart.inner];
@@ -586,7 +610,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 					g->setColor(TrackerConfig::colorPatternEditorCursor);
 				else
 					g->setColor(PPUIConfig::getInstance()->getColor(PPUIConfig::ColorGrayedOutSelection));
-					
+
 				for (pp_int32 k = cursorPositions[cursor.inner]; k < cursorPositions[cursor.inner]+cursorSizes[cursor.inner]; k++)
 					g->drawVLine(py, py + font->getCharHeight(), px + k);
 
@@ -614,7 +638,11 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 
 			if (muteChannels[j])
 			{
-				noteCol.scaleFixed(properties.muteFade);
+				if(g->needsPalette()) {
+					noteCol.scaleFixed(32768);
+				} else {
+					noteCol.scaleFixed(properties.muteFade);
+				}
 			}
 
 			g->setColor(noteCol);
@@ -622,11 +650,15 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 			g->drawString(name,px, py);
 
 			px += fontCharWidth3x + properties.spacing;
-			
+
 			if (muteChannels[j])
 			{
 				PPColor insCol = insColor;
-				insCol.scaleFixed(properties.muteFade);
+				if(g->needsPalette()) {
+					insCol.scaleFixed(32768);
+				} else {
+					insCol.scaleFixed(properties.muteFade);
+				}
 				g->setColor(insCol);
 			}
 			else
@@ -636,23 +668,27 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 
 			if (i)
 				patternTools->convertToHex(name, i, 2);
-			else 
+			else
 			{
 				name[0] = name[1] = '\xf4';
 				name[2] = 0;
 			}
-			
+
 			if (name[0] == '0')
 			name[0] = '\xf4';
 
 			g->drawString(name,px, py);
-			
+
 			px += fontCharWidth2x + properties.spacing;
 
 			if (muteChannels[j])
 			{
 				PPColor volCol = volColor;
-				volCol.scaleFixed(properties.muteFade);
+				if(g->needsPalette()) {
+					volCol.scaleFixed(32768);
+				} else {
+					volCol.scaleFixed(properties.muteFade);
+				}
 				g->setColor(volCol);
 			}
 			else
@@ -665,35 +701,39 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 			if (pattern->effnum >= 2)
 			{
 				patternTools->getFirstEffect(eff, op);
-				
+
 				patternTools->convertEffectsToFT2(eff, op);
-				
+
 				pp_int32 volume = patternTools->getVolumeFromEffect(eff, op);
-			
+
 				patternTools->getVolumeName(name, volume);
 			}
 
 			g->drawString(name,px, py);
-			
+
 			px += fontCharWidth2x + properties.spacing;
 
 			if (muteChannels[j])
 			{
 				PPColor effCol = effColor;
-				effCol.scaleFixed(properties.muteFade);
+				if(g->needsPalette()) {
+					effCol.scaleFixed(32768);
+				} else {
+					effCol.scaleFixed(properties.muteFade);
+				}
 				g->setColor(effCol);
 			}
 			else
 				g->setColor(effColor);
-			
+
 			if (pattern->effnum == 1)
 			{
-				patternTools->getFirstEffect(eff, op);				
+				patternTools->getFirstEffect(eff, op);
 				patternTools->convertEffectsToFT2(eff, op);
 			}
 			else
 			{
-				patternTools->getNextEffect(eff, op);				
+				patternTools->getNextEffect(eff, op);
 				patternTools->convertEffectsToFT2(eff, op);
 			}
 
@@ -714,12 +754,16 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 			if (muteChannels[j])
 			{
 				PPColor opCol = opColor;
-				opCol.scaleFixed(properties.muteFade);
+				if(g->needsPalette()) {
+					opCol.scaleFixed(32768);
+				} else {
+					opCol.scaleFixed(properties.muteFade);
+				}
 				g->setColor(opCol);
 			}
 			else
 				g->setColor(opColor);
-			
+
 			if (eff == 0 && op == 0)
 			{
 				name[0] = name[1] = properties.zeroEffectCharacter;
@@ -728,7 +772,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 			else
 			{
 				patternTools->convertToHex(name, op, 2);
-			}			
+			}
 
 			g->drawString(name,px, py);
 		}
@@ -738,7 +782,7 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 	{
 
 		pp_int32 px = (location.x + (j-startPos) * slotSize + SCROLLBARWIDTH) + (getRowCountWidth() + 4);
-			
+
 		// columns are already in invisible area => abort
 		if (px >= location.x + size.width)
 			break;
@@ -748,68 +792,68 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 		px += fontCharWidth1x;
 
 		g->setColor(*borderColor);
-		
+
 		g->drawVLine(location.y, location.y + size.height, px+1);
-		
+
 		g->setColor(bColor);
-		
+
 		g->drawVLine(location.y, location.y + size.height, px);
-		
+
 		g->setColor(dColor);
-		
+
 		g->drawVLine(location.y, location.y + size.height, px+2);
 	}
 
 	// ;----------------- Margin lines
 	// draw margin vertical line
 	g->setColor(*borderColor);
-		
+
 	pp_int32 px = location.x + SCROLLBARWIDTH;
 	px+=getRowCountWidth() + 1;
 	g->drawVLine(location.y, location.y + size.height, px+1);
-	
-	g->setColor(bColor);	
+
+	g->setColor(bColor);
 	g->drawVLine(location.y, location.y + size.height, px);
-	
-	g->setColor(dColor);	
+
+	g->setColor(dColor);
 	g->drawVLine(location.y, location.y + size.height, px+2);
-	
+
 	// draw margin horizontal lines
 	for (j = 0; j < visibleWidth / slotSize + 1; j++)
-	{		
+	{
 		pp_int32 px = (location.x + j * slotSize + SCROLLBARWIDTH) + (getRowCountWidth() + 4) - 1;
-		
+
 		// columns are already in invisible area => abort
 		if (px >= location.x + size.width)
 			break;
-		
+
 		pp_int32 py = location.y + SCROLLBARWIDTH;
-		
+
 		py+=font->getCharHeight() + 1;
-		
+
 		// Did we reach the maximum number of channels already?
 		// no: just draw seperate horizontal line segments between the vertical margin lines
 		if (startPos + j < numVisibleChannels)
 		{
-			g->setColor(*borderColor);	
+			g->setColor(*borderColor);
 			g->drawHLine(px, px + slotSize - 1, py+1);
-			
-			g->setColor(bColor);	
+
+			g->setColor(bColor);
 			g->drawHLine(px + 1, px + slotSize - 2, py);
-			
-			g->setColor(dColor);	
+
+			g->setColor(dColor);
 			g->drawHLine(px + 1, px + slotSize - 2, py+2);
 		}
 		// yes: draw the horizontal margin line completely to the right and abort loop
 		else
 		{
-			g->setColor(*borderColor);	
+			g->setColor(*borderColor);
 			g->drawHLine(px, location.x + size.width, py+1);
-			
-			g->setColor(bColor);	
+
+			g->setColor(bColor);
 			g->drawHLine(px + 1, location.x + size.width, py);
-			
-			g->setColor(dColor);	
+
+			g->setColor(dColor);
 			g->drawHLine(px + 1, location.x + size.width, py+2);
 			break;
 		}
@@ -866,8 +910,8 @@ void PatternEditorControl::paint(PPGraphicsAbstract* g)
 	// draw scrollbars
 	hTopScrollbar->paint(g);
 	hBottomScrollbar->paint(g);
-	vLeftScrollbar->paint(g); 	
-	vRightScrollbar->paint(g); 
+	vLeftScrollbar->paint(g);
+	vRightScrollbar->paint(g);
 }
 
 void PatternEditorControl::attachPatternEditor(PatternEditor* patternEditor)
@@ -879,7 +923,7 @@ void PatternEditorControl::attachPatternEditor(PatternEditor* patternEditor)
 	patternEditor->addNotificationListener(this);
 
 	this->module = patternEditor->getModule();
-	this->pattern = patternEditor->getPattern(); 
+	this->pattern = patternEditor->getPattern();
 
 	adjustScrollBarPositionsAndSizes();
 }
@@ -890,7 +934,7 @@ void PatternEditorControl::reset()
 
 	menuInvokeChannel = -1;
 	menuPosX = menuPosY = 0;
-	
+
 	// clear selection
 	startSelection = false;
 }
@@ -901,14 +945,14 @@ void PatternEditorControl::setNumVisibleChannels(pp_int32 channels)
 
 	adjustScrollBarPositionsAndSizes();
 
-	validate();	
+	validate();
 }
 
 pp_int32 PatternEditorControl::getRowCountWidth()
 {
 	if (pattern == NULL)
 		return 0;
-	
+
 	if (!properties.prospective)
 	{
 		if (properties.hexCount)
@@ -927,12 +971,12 @@ pp_int32 PatternEditorControl::getRowCountWidth()
 
 void PatternEditorControl::adjustExtents()
 {
-	visibleWidth = size.width - (getRowCountWidth() + 4) - SCROLLBARWIDTH*2;	
+	visibleWidth = size.width - (getRowCountWidth() + 4) - SCROLLBARWIDTH*2;
 	visibleHeight = size.height - (font->getCharHeight() + 4) - SCROLLBARWIDTH*2;
-	
+
 	slotSize = 10*font->getCharWidth() + 3*1 + 4 + 3*properties.spacing;
 
-	cursorPositions[0] = 0;	
+	cursorPositions[0] = 0;
 	cursorPositions[1] = 3 * font->getCharWidth() + 1 + properties.spacing;
 	cursorPositions[2] = cursorPositions[1] + font->getCharWidth();
 	cursorPositions[3] = cursorPositions[2] + font->getCharWidth() + 1 + properties.spacing;
@@ -940,8 +984,8 @@ void PatternEditorControl::adjustExtents()
 	cursorPositions[5] = cursorPositions[4] + font->getCharWidth() + 1 + properties.spacing;
 	cursorPositions[6] = cursorPositions[5] + font->getCharWidth() + 1;
 	cursorPositions[7] = cursorPositions[6] + font->getCharWidth();
-	cursorPositions[8] = /*cursorPositions[7] + font->getCharWidth() + 1*/slotSize;	
-	
+	cursorPositions[8] = /*cursorPositions[7] + font->getCharWidth() + 1*/slotSize;
+
 	cursorSizes[0] = 3 * font->getCharWidth(); // note
 	cursorSizes[1] = font->getCharWidth(); // instrument digit 1
 	cursorSizes[2] = font->getCharWidth(); // instrument digit 2
@@ -990,12 +1034,12 @@ void PatternEditorControl::adjustScrollBarSizes()
 	else
 	{
 		//s = (float)(visibleHeight>>1) / (float)((pattern->rows-1)*(font->getCharHeight()));
-		
+
 		s = 1.0f / (float)pattern->rows;
 		if (s > 1.0f)
 			s = 1.0f;
 	}
-	
+
 	vLeftScrollbar->setBarSize((pp_int32)(s*65536.0f), false);
 	vRightScrollbar->setBarSize((pp_int32)(s*65536.0f), false);
 
@@ -1008,9 +1052,9 @@ void PatternEditorControl::adjustScrollBarPositionsAndSizes()
 {
 	if (pattern == NULL)
 		return;
-	
+
 	adjustScrollBarSizes();
-	
+
 	adjustVerticalScrollBarPositions(startIndex);
 	adjustHorizontalScrollBarPositions(startPos);
 }
@@ -1025,11 +1069,11 @@ void PatternEditorControl::scrollCursorUp()
 {
 	if (pattern == NULL)
 		return;
-		
+
 	/*cursor.row--;
 	if (cursor.row < 0)
 		cursor.row = 0;*/
-		
+
 	eventKeyDownBinding_UP();
 }
 
@@ -1037,11 +1081,11 @@ void PatternEditorControl::scrollCursorDown()
 {
 	if (pattern == NULL)
 		return;
-		
+
 	/*cursor.row++;
 	if (cursor.row > pattern->rows - 1)
 		cursor.row = pattern->rows - 1;*/
-		
+
 	eventKeyDownBinding_DOWN();
 }
 
@@ -1049,23 +1093,23 @@ void PatternEditorControl::assureCursorVisible(bool row/* = true*/, bool channel
 {
 	if (pattern == NULL)
 		return;
-	
+
 	PatternEditorTools::Position& cursor = patternEditor->getCursor();
-	
+
 	if (row)
 	{
-		
+
 		if (cursor.row >= 0)
 		{
-		
+
 			switch (properties.scrollMode)
 			{
 				case ScrollModeToEnd:
 				{
 					pp_int32 visibleItems = (visibleHeight - font->getCharHeight()) / font->getCharHeight();
-					
-					
-					if ((startIndex <= cursor.row) && 
+
+
+					if ((startIndex <= cursor.row) &&
 						((cursor.row - startIndex) * font->getCharHeight()) <= (visibleHeight - font->getCharHeight()))
 					{
 					}
@@ -1093,16 +1137,16 @@ void PatternEditorControl::assureCursorVisible(bool row/* = true*/, bool channel
 				case ScrollModeToCenter:
 				{
 					pp_int32 mid = (visibleHeight/2) / font->getCharHeight();
-					startIndex = cursor.row - mid;			
+					startIndex = cursor.row - mid;
 					if (startIndex < 0)
-						startIndex = 0;						
+						startIndex = 0;
 					break;
 				}
-				
+
 				case ScrollModeStayInCenter:
 				{
 					pp_int32 mid = (visibleHeight/2) / font->getCharHeight();
-					startIndex = cursor.row - mid;			
+					startIndex = cursor.row - mid;
 					break;
 				}
 			}
@@ -1113,18 +1157,18 @@ void PatternEditorControl::assureCursorVisible(bool row/* = true*/, bool channel
 
 	if (channel)
 	{
-		
+
 		if (cursor.channel >= 0)
 		{
 			pp_int32 visibleChannels = ((visibleWidth) / slotSize) - 1;
-			
-			pp_int32 cursorPos = (cursor.channel-startPos) * slotSize + 
+
+			pp_int32 cursorPos = (cursor.channel-startPos) * slotSize +
 								 cursorPositions[cursor.inner];
-	
-			pp_int32 cursorWidth = cursorPositions[cursor.inner+1] - 
+
+			pp_int32 cursorWidth = cursorPositions[cursor.inner+1] -
 								   cursorPositions[cursor.inner];
 
-			if ((startPos <= cursor.channel) && 
+			if ((startPos <= cursor.channel) &&
 				cursorPos <= visibleWidth - cursorWidth)
 			{
 			}
@@ -1144,7 +1188,7 @@ void PatternEditorControl::assureCursorVisible(bool row/* = true*/, bool channel
 				if (startPos < 0)
 					startPos = 0;
 			}
-			
+
 		}
 
 		adjustHorizontalScrollBarPositions(startPos);
@@ -1178,9 +1222,9 @@ void PatternEditorControl::advanceRow(bool assureCursor/* = true*/, bool repaint
 	}
 	else
 		cursor.row = pattern->rows - 1;*/
-	
+
 	PatternEditorTools::Position& cursor = patternEditor->getCursor();
-										
+
 	cursor.row = (cursor.row + properties.rowInsertAdd)/* % pattern->rows*/;
 
 	pp_int32 res = 0;
@@ -1193,10 +1237,10 @@ void PatternEditorControl::advanceRow(bool assureCursor/* = true*/, bool repaint
 	{
 		cursor.row %= pattern->rows;
 	}
-	
+
 	if (assureCursor)
-		assureCursorVisible();	
-		
+		assureCursorVisible();
+
 	if (repaint)
 		parentScreen->paintControl(this);
 }
@@ -1212,7 +1256,7 @@ void PatternEditorControl::advance()
 		cursor.channel = getNextRecordingChannel(cursor.channel);
 
 	advanceRow(false, false);
-	
+
 	assureCursorVisible();
 }
 
@@ -1220,7 +1264,7 @@ void PatternEditorControl::setRow(pp_int32 row, bool bAssureCursorVisible/* = tr
 {
 	if (pattern == NULL)
 		return;
-		
+
 	PatternEditorTools::Position& cursor = patternEditor->getCursor();
 
 	if (row >= 0 && row < pattern->rows)
@@ -1253,17 +1297,17 @@ void PatternEditorControl::validate()
 	// validate scrollbar sizes
 	adjustScrollBarSizes();
 	/*float s = (float)(visibleHeight) / (float)(pattern->rows*(font->getCharHeight()));
-	
+
 	vLeftScrollbar->setBarSize((pp_int32)(s*65536.0f), false);
 	vRightScrollbar->setBarSize((pp_int32)(s*65536.0f), false);
-	
+
 	s = (float)(visibleWidth) / (float)(numVisibleChannels*slotSize);
-	
+
 	hTopScrollbar->setBarSize((pp_int32)(s*65536.0f), false);
 	hBottomScrollbar->setBarSize((pp_int32)(s*65536.0f), false);*/
-	
+
 	PatternEditorTools::Position& cursor = patternEditor->getCursor();
-	
+
 	// validate cursor position
 	if (cursor.channel >= patternEditor->getNumChannels())
 	{
@@ -1276,16 +1320,16 @@ void PatternEditorControl::validate()
 		cursor.row = pattern->rows-1;
 		assureCursorVisible(true, false);
 	}
-	
+
 	pp_int32 visibleItems = (visibleHeight - font->getCharHeight()) / font->getCharHeight();
-	
+
 	if (properties.scrollMode != ScrollModeStayInCenter)
 	{
 		if (startIndex + visibleItems > pattern->rows)
 		{
 			startIndex-=(startIndex + visibleItems)-pattern->rows;
 		}
-		
+
 		if (startIndex < 0)
 			startIndex = 0;
 	}
@@ -1302,16 +1346,16 @@ void PatternEditorControl::validate()
 	// validate selection
 	/*flattenSelection();
 
-	if ((selectionStart.channel >= 0 && selectionStart.channel > numVisibleChannels-1) || 
+	if ((selectionStart.channel >= 0 && selectionStart.channel > numVisibleChannels-1) ||
 		(selectionStart.row >= 0 && selectionStart.row > pattern->rows-1))
 	{
 		resetSelection();
 		return;
 	}
-	
+
 	if (selectionEnd.channel >= 0 && selectionEnd.channel > numVisibleChannels-1)
 		selectionEnd.channel = numVisibleChannels-1;
-	
+
 	if (selectionEnd.row >= 0 && selectionEnd.row > pattern->rows-1)
 		selectionEnd.row = pattern->rows-1;*/
 }
@@ -1336,7 +1380,7 @@ void PatternEditorControl::markChannel(pp_int32 channel, bool invert/* = true*/)
 	else
 	{
 		patternEditor->selectChannel(channel);
-	}	
+	}
 }
 
 void PatternEditorControl::selectAll()
@@ -1356,7 +1400,7 @@ void PatternEditorControl::executeMenuCommand(pp_int32 commandId)
 		case MenuCommandIDMuteChannel:
 		{
 			muteChannels[menuInvokeChannel] = !muteChannels[menuInvokeChannel];
-			PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));						
+			PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));
 			eventListener->handleEvent(reinterpret_cast<PPObject*>(this), &e);
 			break;
 		}
@@ -1366,7 +1410,7 @@ void PatternEditorControl::executeMenuCommand(pp_int32 commandId)
 			for (pp_uint32 i = 0; i < sizeof(muteChannels)/sizeof(pp_uint8); i++)
 				muteChannels[i] = true;
 			muteChannels[menuInvokeChannel] = false;
-			PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));						
+			PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));
 			eventListener->handleEvent(reinterpret_cast<PPObject*>(this), &e);
 			break;
 		}
@@ -1375,7 +1419,7 @@ void PatternEditorControl::executeMenuCommand(pp_int32 commandId)
 		{
 			for (pp_uint32 i = 0; i < sizeof(muteChannels)/sizeof(pp_uint8); i++)
 				muteChannels[i] = false;
-			PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));						
+			PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));
 			eventListener->handleEvent(reinterpret_cast<PPObject*>(this), &e);
 			break;
 		}
@@ -1389,7 +1433,7 @@ void PatternEditorControl::executeMenuCommand(pp_int32 commandId)
 		case MenuCommandIDCopy:
 			eventKeyCharBinding_Copy();
 			break;
-		
+
 		// paste
 		case MenuCommandIDPaste:
 			eventKeyCharBinding_Paste();
@@ -1404,32 +1448,32 @@ void PatternEditorControl::executeMenuCommand(pp_int32 commandId)
 		case MenuCommandIDSelectAll:
 			eventKeyCharBinding_SelectAll();
 			break;
-		
+
 		// mark channel
 		case MenuCommandIDSelectChannel:
 			markChannel(menuInvokeChannel);
 			break;
-			
+
 		case MenuCommandIDUndo:
 			patternEditor->undo();
 			break;
-			
+
 		case MenuCommandIDRedo:
 			patternEditor->redo();
 			break;
-			
+
 		case MenuCommandIDSwapChannels:
 			patternEditor->swapChannels(patternEditor->getCursor().channel, menuInvokeChannel);
 			break;
 	}
-	
+
 	// Hack:
 	if (parentScreen->getContextMenuControl() == editMenuControl)
 	{
 		menuInvokeChannel = -1;
 		lastMenuInvokeChannel = -1;
 	}
-	
+
 }
 
 void PatternEditorControl::switchEditMode(EditModes mode)
@@ -1462,9 +1506,9 @@ void PatternEditorControl::switchEditMode(EditModes mode)
 
 void PatternEditorControl::unmuteAll()
 {
-	memset(muteChannels, 0, sizeof(muteChannels));	
+	memset(muteChannels, 0, sizeof(muteChannels));
 
-	PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));						
+	PPEvent e(eValueChanged, &muteChannels, sizeof(muteChannels));
 	eventListener->handleEvent(reinterpret_cast<PPObject*>(this), &e);
 }
 
@@ -1482,7 +1526,7 @@ void PatternEditorControl::editorNotification(EditorBase* sender, EditorBase::Ed
 			patternEditor = NULL;
 			break;
 		}
-	
+
 		case PatternEditor::NotificationReload:
 		{
 			pattern = patternEditor->getPattern();
@@ -1491,13 +1535,13 @@ void PatternEditorControl::editorNotification(EditorBase* sender, EditorBase::Ed
 			validate();
 			break;
 		}
-		
+
 		case PatternEditor::NotificationChanges:
 		{
 			bool lazyUpdateNotifications = patternEditor->getLazyUpdateNotifications();
 			bool numRowsChanged = patternEditor->getLastOperationDidChangeRows();
 			bool cursorChanged = patternEditor->getLastOperationDidChangeCursor();
-			
+
 			// if this is a lazy notification it means we're only
 			// notifying that something has changed, instead of refreshing the screen
 			// which means that the screen is probably refreshed somewhere else
@@ -1507,21 +1551,21 @@ void PatternEditorControl::editorNotification(EditorBase* sender, EditorBase::Ed
 				notifyChanges();
 				return;
 			}
-			
+
 			notifyChanges();
-			
+
 			if (numRowsChanged)
 				adjustScrollBarPositionsAndSizes();
-			
+
 			if (cursorChanged)
 				assureCursorVisible();
-			
+
 			validate();
-			
+
 			parentScreen->paintControl(this, false);
-			break;	
+			break;
 		}
-		
+
 		case PatternEditor::NotificationFeedUndoData:
 		{
 			undoInfo = UndoInfo(startIndex, startPos);
@@ -1533,13 +1577,13 @@ void PatternEditorControl::editorNotification(EditorBase* sender, EditorBase::Ed
 			if (sizeof(undoInfo) == patternEditor->getUndoUserDataLen())
 			{
 				memcpy(&undoInfo, const_cast<void*>(patternEditor->getUndoUserData()), sizeof(undoInfo));
-				
+
 				assureCursorVisible();
 				setScrollbarPositions(undoInfo.startIndex, undoInfo.startPos);
-				validate();		
-				parentScreen->paintControl(this, false);		
+				validate();
+				parentScreen->paintControl(this, false);
 				notifyUpdate();
-			}	
+			}
 			break;
 		default:
 			break;

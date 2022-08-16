@@ -31,6 +31,7 @@
 #include "PlayerCriticalSection.h"
 #include "TrackerConfig.h"
 #include "PPSystem.h"
+#include "XIInstrument.h"
 #include "version.h"
 
 static const char validCharacters[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_!.";
@@ -127,7 +128,8 @@ ModuleEditor::ModuleEditor() :
 	currentPatternIndex(0),
 	currentInstrumentIndex(0),
 	currentSampleIndex(0),
-	enumerationIndex(-1)
+	enumerationIndex(-1),
+	dialogSynth(NULL)
 {
 	instruments = new TEditorInstrument[MAX_INSTRUMENTS];
 
@@ -248,6 +250,10 @@ void ModuleEditor::adjustExtension(bool hasExtension/* = true*/)
 
 		case ModSaveTypeMOD:
 			moduleFileName.append(".mod");
+			break;
+
+		case ModSaveTypeTMM:
+			moduleFileName.append(".tmm");
 			break;
 
 		default:
@@ -608,7 +614,7 @@ void ModuleEditor::createEmptySong(bool clearPatterns/* = true*/, bool clearInst
 
 		lastRequestedPatternIndex = 0;
 
-		leaveCriticalSection();	
+		leaveCriticalSection();
 	}
 }
 
@@ -688,16 +694,22 @@ bool ModuleEditor::openSong(const SYSCHAR* fileName, const SYSCHAR* preferredFil
 
 	bool res = (nRes == MP_OK);
 
+	XMFile f(fileName);
+	bool isMagicMOD = f.readByte() == 232;
+
 	XModule::ModuleTypes type = XModule::ModuleType_NONE;
 
-	if (module->getType() != XModule::ModuleType_XM)
+	if (!isMagicMOD && module->getType() == XModule::ModuleType_TMM) {
+		type = module->getType();
+	}
+	else if (module->getType() != XModule::ModuleType_XM)
 	{
 		type = module->getType();
 
 		mp_ubyte oneShotFlags[MAX_INSTRUMENTS];
 		// save flags for one shot PT style looping, it will be stripped out
 		// when exporting to XM
-		if (type == XModule::ModuleType_MOD)
+		if (isMagicMOD || type == XModule::ModuleType_MOD)
 		{
 			memset(oneShotFlags, 0, sizeof(oneShotFlags));
 			for (mp_sint32 i = 0; i < module->header.insnum; i++)
@@ -715,7 +727,7 @@ bool ModuleEditor::openSong(const SYSCHAR* fileName, const SYSCHAR* preferredFil
 		try
 		{
 #endif
-			res = module->saveExtendedModule(tempFile) == MP_OK;
+			res = module->saveExtendedModule(tempFile, isMagicMOD) == MP_OK;
 			if(!res)
 				return res;
 
@@ -726,7 +738,7 @@ bool ModuleEditor::openSong(const SYSCHAR* fileName, const SYSCHAR* preferredFil
 		}
 #endif
 		// restore one shot looping flag
-		if (type == XModule::ModuleType_MOD)
+		if (isMagicMOD || type == XModule::ModuleType_MOD)
 		{
 			for (mp_sint32 i = 0; i < module->header.insnum; i++)
 			{
@@ -763,6 +775,8 @@ bool ModuleEditor::openSong(const SYSCHAR* fileName, const SYSCHAR* preferredFil
 
 		if (type == XModule::ModuleType_MOD)
 			eSaveType = ModSaveTypeMOD;
+		else if(type == XModule::ModuleType_TMM)
+			eSaveType = ModSaveTypeTMM;
 		else
 			eSaveType = ModSaveTypeXM;
 
@@ -790,11 +804,15 @@ bool ModuleEditor::saveSong(const SYSCHAR* fileName, ModSaveTypes saveType/* = e
 	{
 		case ModSaveTypeDefault:
 		case ModSaveTypeXM:
-			res = module->saveExtendedModule(fileName, MILKYTRACKER_VERSION_STRING) == 0;
+			res = module->saveExtendedModule(fileName, false, MILKYTRACKER_VERSION_STRING) == 0;
 			break;
 
 		case ModSaveTypeMOD:
 			res = module->saveProtrackerModule(fileName) == 0;
+			break;
+
+		case ModSaveTypeTMM:
+			res = module->saveMagicalModule(fileName, playerController->getPlayMode() == PlayerController::PlayMode_FastTracker2) == 0;
 			break;
 	}
 
@@ -812,7 +830,7 @@ bool ModuleEditor::saveSong(const SYSCHAR* fileName, ModSaveTypes saveType/* = e
 
 mp_sint32 ModuleEditor::saveBackup(const SYSCHAR* fileName)
 {
-	return module->saveExtendedModule(fileName, MILKYTRACKER_VERSION_STRING);
+	return module->saveExtendedModule(fileName, false, MILKYTRACKER_VERSION_STRING);
 }
 
 void ModuleEditor::increaseSongLength()
@@ -1415,6 +1433,32 @@ bool ModuleEditor::insertXIInstrument(mp_sint32 index, const XIInstrument* ins)
 	instruments[index].vibdepth = ins->vibdepth>>1;
 	instruments[index].vibsweep = ins->vibsweep;
 
+	// MAGIC
+	instruments[index].instrument->tmm.type                    = 0;
+	instruments[index].instrument->tmm.noise.type              = TMM_NOISETYPE_WHITE;
+	instruments[index].instrument->tmm.sine.basefreq           = 440;
+	instruments[index].instrument->tmm.pulse.basefreq          = 440;
+	instruments[index].instrument->tmm.additive.basefreq       = 440;
+	instruments[index].instrument->tmm.pulse.width             = 16;
+	instruments[index].instrument->tmm.additive.nharmonics     = 64;
+	instruments[index].instrument->tmm.additive.bandwidth      = 20;
+	instruments[index].instrument->tmm.additive.detune         = 64;
+	instruments[index].instrument->tmm.additive.bwscale        = 1;
+	instruments[index].instrument->tmm.additive.rndseed        = 1337;
+	instruments[index].instrument->tmm.additive.usefilters     = 0;
+	instruments[index].instrument->tmm.additive.lpfreq         = 220;
+	instruments[index].instrument->tmm.additive.hpfreq         = 0;
+	instruments[index].instrument->tmm.additive.usescale       = 0;
+	instruments[index].instrument->tmm.additive.phasenoisetype = TMM_NOISETYPE_WHITE;
+	instruments[index].instrument->tmm.additive.destroyer      = 0;
+	instruments[index].instrument->tmm.additive.useenv         = 0;
+	instruments[index].instrument->tmm.additive.envatt         = 0;
+	instruments[index].instrument->tmm.additive.envdec         = 0;
+	instruments[index].instrument->tmm.additive.envsus         = 32768;
+	instruments[index].instrument->tmm.additive.envhold        = 32768;
+	instruments[index].instrument->tmm.additive.envrel         = 0;
+	memset(&instruments[index].instrument->tmm.additive.harmonics, 0, 64 * sizeof(unsigned char));
+
 	// Wipe samples first
 	for (j = 0; j < 16; j++)
 	{
@@ -1595,6 +1639,40 @@ bool ModuleEditor::saveInstrument(const SYSCHAR* fileName, mp_sint32 index)
 	}
 
 	return res;
+}
+
+bool ModuleEditor::loadTMI(const SYSCHAR* fileName, mp_sint32 index)
+{
+	ASSERT(index < module->header.insnum);
+
+	TTMMSettings * tmmsettings = &module->instr[index].tmm;
+	FILE * f = fopen(fileName, "rb");
+	if(f) {
+		fread(tmmsettings, sizeof(TTMMSettings), 1, f);
+		fclose(f);
+
+		if(dialogSynth) {
+			dialogSynth->loadSettings();
+		}
+
+		return true;
+	}
+	return false;
+}
+
+bool ModuleEditor::saveTMI(const SYSCHAR* fileName, mp_sint32 index)
+{
+	ASSERT(index < module->header.insnum);
+
+	TTMMSettings * tmmsettings = &module->instr[index].tmm;
+	FILE * f = fopen(fileName, "wb");
+	if(f) {
+		fwrite(tmmsettings, sizeof(TTMMSettings), 1, f);
+		fclose(f);
+
+		return true;
+	}
+	return false;
 }
 
 bool ModuleEditor::zapInstrument(mp_sint32 index)
@@ -2555,3 +2633,7 @@ PPSystemString ModuleEditor::getTempFilename()
 	return PPSystemString(System::getTempFileName());
 }
 
+void ModuleEditor::setDialogSynth(DialogSynth * dialogSynth)
+{
+	this->dialogSynth = dialogSynth;
+}

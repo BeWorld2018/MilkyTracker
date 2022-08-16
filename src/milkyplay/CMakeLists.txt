@@ -50,10 +50,12 @@ add_library(milkyplay STATIC
     LoaderPTM.cpp
     LoaderS3M.cpp
     LoaderSTM.cpp
+    LoaderTMM.cpp
     LoaderULT.cpp
     LoaderUNI.cpp
     LoaderXM.cpp
     MasterMixer.cpp
+    MixerProxy.cpp
     PlayerBase.cpp
     PlayerFAR.cpp
     PlayerGeneric.cpp
@@ -85,11 +87,13 @@ add_library(milkyplay STATIC
     MilkyPlayResults.h
     MilkyPlayTypes.h
     Mixable.h
+    MixerProxy.h
     PlayerBase.h
     PlayerFAR.h
     PlayerGeneric.h
     PlayerIT.h
     PlayerSTD.h
+    ProxyProcessor.h
     ResamplerAmiga.h
     ResamplerCubic.h
     ResamplerFactory.h
@@ -117,6 +121,11 @@ target_include_directories(milkyplay
         ${PROJECT_BINARY_DIR}/src/tracker
 )
 
+target_link_libraries(milkyplay
+    PRIVATE
+        tmm
+)
+
 # Add platform-specific sources, include paths, definitions and link libraries
 if(APPLE)
     target_sources(milkyplay
@@ -139,20 +148,31 @@ if(APPLE)
     )
     message(STATUS "Enabled Core Audio support")
 elseif(AROS OR AMIGA)
+    enable_language(ASM_VASM)
+
     target_sources(milkyplay
         PRIVATE
             # Sources
-            drivers/sdl/AudioDriver_SDL.cpp
+            drivers/amiga/AudioDriver_Amiga.cpp
+            drivers/amiga/AudioDriver_Arne.cpp
+            drivers/amiga/AudioDriver_Paula.cpp
+
+            # VASM
+            drivers/amiga/AudioDriver_Arne.s
+
             # Headers
-            drivers/sdl/AudioDriver_SDL.h
+            drivers/amiga/AudioDriver_Amiga.h
+            drivers/amiga/AudioDriver_Arne.h
+            drivers/amiga/AudioDriver_Paula.h
         )
     target_include_directories(milkyplay PRIVATE
             drivers/sdl
+            drivers/amiga
             ${SDL_INCLUDE_DIR}
         )
     target_link_libraries(milkyplay PUBLIC ${SDL_LIBRARY})
 
-    message(STATUS "Enabled AHI")
+    message(STATUS "Enabled Paula and Arne")
 elseif(WIN32)
     # Basic WaveOut support
     target_sources(milkyplay
