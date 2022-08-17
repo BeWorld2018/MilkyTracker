@@ -80,9 +80,11 @@ def buildStep(dockerImage, os, flags) {
 						returnStdout: true
 					).trim()
 					sh "VERBOSE=1 cmake --build . --config Release -- -j${_NPROCESSORS_ONLN}"
+					sh "VERBOSE=1 cmake --build . --config Release --target package -- -j${_NPROCESSORS_ONLN}"
 					
-					sh "cp src/tracker/milkytracker milkytracker-${os}"
-					archiveArtifacts artifacts: "milkytracker-${os}"
+					sh "cp src/tracker/milkytracker.zip milkytracker-${os}.zip"
+					archiveArtifacts artifacts: "milkytracker-${os}.zip"
+					stash includes: "milkytracker-${os}.zip", name: "${os}"
 				}
 
 				if (!env.CHANGE_ID) {
@@ -92,7 +94,6 @@ def buildStep(dockerImage, os, flags) {
 
 					sh "cp -fvr build/${os}/src/tracker/milkytracker ${env.WORKSPACE}/publishing/deploy/milkytracker/${os}/"
 				}
-				stash includes: "publishing/deploy/milkytracker/**", name: "${os}"
 				slackSend color: "good", channel: "#jenkins", message: "Build ${fixed_job_name} #${env.BUILD_NUMBER} Target: ${os} DockerImage: ${dockerImage} successful!"
 			}
 		}
@@ -132,7 +133,7 @@ node('master') {
 		project.builds.each { v ->
 			try {
 				// ${os}
-				unstash("milkytracker-${v.DockerTag}");
+				unstash("${v.DockerTag}");
 			} catch(err) {
 				notify("Stash ${v.DockerTag} not found");
 			}
