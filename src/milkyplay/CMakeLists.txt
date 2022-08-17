@@ -161,19 +161,15 @@ elseif(AROS OR AMIGA)
             drivers/amiga/AudioDriver_Arne.s
 
             # Headers
-            drivers/sdl/AudioDriver_SDL.h
             drivers/amiga/AudioDriver_Amiga.h
             drivers/amiga/AudioDriver_Arne.h
             drivers/amiga/AudioDriver_Paula.h
         )
     target_include_directories(milkyplay PRIVATE
-            drivers/sdl
             drivers/amiga
-            ${SDL_INCLUDE_DIR}
         )
     target_link_libraries(milkyplay PUBLIC ${SDL_LIBRARY})
 
-    message(STATUS "Enabled SDL Audio")
     message(STATUS "Enabled Paula and Arne")
 elseif(WIN32)
     # Basic WaveOut support

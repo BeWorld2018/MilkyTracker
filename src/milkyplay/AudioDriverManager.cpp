@@ -220,16 +220,14 @@ AudioDriverManager::AudioDriverManager() :
 //////////////////////////////////////////////////////////////////
 #include "AudioDriver_Paula.h"
 #include "AudioDriver_Arne.h"
-#include "AudioDriver_SDL.h"
 
 extern AudioDriverInterface * CreateAudioDriver();
 
 AudioDriverManager::AudioDriverManager() :
 	defaultDriverIndex(0)
 {
-	ALLOC_DRIVERLIST(2);
+	ALLOC_DRIVERLIST(1);
 	driverList[0] = CreateAudioDriver();
-	driverList[1] = new AudioDriver_SDL();
 }
 
 #endif
