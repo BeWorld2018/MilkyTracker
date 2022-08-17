@@ -62,7 +62,7 @@ def buildStep(dockerImage, os, flags) {
 				}
 
 				sh "rm -rf build/*"
-				sh "mkdir -p build/${os}/"
+				sh "mkdir -p build/${os}/milkytracker"
 				sh "mkdir -p lib/"
 
 				slackSend color: "good", channel: "#jenkins", message: "Starting ${os} build target..."
@@ -82,9 +82,13 @@ def buildStep(dockerImage, os, flags) {
 					sh "VERBOSE=1 cmake --build . --config Release -- -j${_NPROCESSORS_ONLN}"
 					sh "VERBOSE=1 cmake --build . --config Release --target package -- -j${_NPROCESSORS_ONLN}"
 					
-					sh "cp src/tracker/*.zip ./"
-					archiveArtifacts artifacts: "**.zip"
-					stash includes: "**.zip", name: "${os}"
+					dir("milkytracker") {
+						sh "unzip ../*.zip ./"
+					}
+					
+					sh "lha -c milkytracker-${os}.lha milkytracker"
+					archiveArtifacts artifacts: "**.lha"
+					stash includes: "**.lha", name: "${os}"
 				}
 
 				if (!env.CHANGE_ID) {
