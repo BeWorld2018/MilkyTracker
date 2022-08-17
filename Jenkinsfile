@@ -83,7 +83,7 @@ def buildStep(dockerImage, os, flags) {
 					sh "VERBOSE=1 cmake --build . --config Release --target package -- -j${_NPROCESSORS_ONLN}"
 					
 					dir("milkytracker") {
-						sh "unzip ../*.zip ./"
+						sh "unzip ../*.zip"
 					}
 					
 					sh "lha -c milkytracker-${os}.lha milkytracker"
