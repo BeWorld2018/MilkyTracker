@@ -9,7 +9,7 @@ Change History (most recent first):
     <2> 03/24/06 must pass NSError objects to exportCompleted
     <1> 11/10/05 initial release
 
-� Copyright 2005-2006 Apple Computer, Inc. All rights reserved.
+© Copyright 2005-2006 Apple Computer, Inc. All rights reserved.
 
 IMPORTANT:  This Apple software is supplied to you by Apple Computer, Inc. ("Apple") in
 consideration of your agreement to the following terms, and your use, installation,
