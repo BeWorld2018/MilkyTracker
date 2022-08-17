@@ -85,6 +85,7 @@ def buildStep(dockerImage, os, flags) {
 					dir("milkytracker") {
 						sh "unzip ../*.zip"
 						sh "mv -fv ./* ./MilkyTracker"
+						sh "cp ../../../resources/packaging/amigaos/milkytracker_dir.info ./MilkyTracker.info"
 						sh "lha -c ../milkytracker-${os}.lha *"
 					}
 					
