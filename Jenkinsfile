@@ -92,7 +92,7 @@ def buildStep(dockerImage, os, flags) {
 						).trim()
 						def release_type = ("${fixed_job_name}-").replace('/','-').replace('MilkyTracker-','').replace('master-','');
 
-						sh "lha -c ../milkytracker-${os}-${release_type}-${archive_date}.lha *"
+						sh "lha -c ../milkytracker-${os}-${release_type}${archive_date}.lha *"
 					}
 					
 					archiveArtifacts artifacts: "**.lha"
