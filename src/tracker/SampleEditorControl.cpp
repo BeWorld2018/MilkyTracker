@@ -1456,6 +1456,14 @@ void SampleEditorControl::loopRange(bool updateNotify/* = false*/)
 		notifyUpdate();
 }
 
+void SampleEditorControl::loopRange(bool updateNotify/* = false*/)
+{	
+	sampleEditor->loopRange();
+
+	if (updateNotify)
+		notifyUpdate();
+}
+
 void SampleEditorControl::rangeClear(bool updateNotify/* = false*/)
 {
 	sampleEditor->resetSelection();
