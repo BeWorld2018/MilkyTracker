@@ -24,7 +24,7 @@ cmake_minimum_required(VERSION 3.10)
 # Additional CMake modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-project(MilkyTracker)
+project(MilkyTracker C CXX ASM)
 
 # Set C++ standard to C++98
 set(CMAKE_CXX_STANDARD 98)
@@ -189,6 +189,8 @@ elseif(WIN32)
     endif()
 elseif(AMIGA OR AROS)
     install(FILES ${PROJECT_SOURCE_DIR}/resources/packaging/amigaos/milkytracker.info DESTINATION .)
+
+    # AROS will provide the SDL dependency via makefile.
 else()
     # Workaround for SDL bug #3295, which occurs in SDL2 <2.0.5
     # https://bugzilla.libsdl.org/show_bug.cgi?id=3295
