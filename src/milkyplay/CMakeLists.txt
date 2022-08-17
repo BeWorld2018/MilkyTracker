@@ -158,7 +158,7 @@ elseif(AROS OR AMIGA)
             drivers/amiga/AudioDriver_Paula.cpp
 
             # VASM
-            drivers/amiga/AudioDriver_Arne.s
+            drivers/amiga/AudioDriver_Arne.asm
 
             # Headers
             drivers/amiga/AudioDriver_Amiga.h

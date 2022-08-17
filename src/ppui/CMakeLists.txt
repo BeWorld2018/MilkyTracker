@@ -148,7 +148,7 @@ elseif(AROS OR AMIGA)
         PRIVATE
             # Sources
             amiga/DisplayDevice_Amiga.cpp
-            amiga/DisplayDevice_Amiga.s
+            amiga/DisplayDevice_Amiga.asm
 
             # Headers
             amiga/DisplayDevice_Amiga.h
