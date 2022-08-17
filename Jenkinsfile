@@ -82,9 +82,9 @@ def buildStep(dockerImage, os, flags) {
 					sh "VERBOSE=1 cmake --build . --config Release -- -j${_NPROCESSORS_ONLN}"
 					sh "VERBOSE=1 cmake --build . --config Release --target package -- -j${_NPROCESSORS_ONLN}"
 					
-					sh "cp src/tracker/milkytracker.zip milkytracker-${os}.zip"
-					archiveArtifacts artifacts: "milkytracker-${os}.zip"
-					stash includes: "milkytracker-${os}.zip", name: "${os}"
+					sh "cp src/tracker/*.zip ./"
+					archiveArtifacts artifacts: "**.zip"
+					stash includes: "**.zip", name: "${os}"
 				}
 
 				if (!env.CHANGE_ID) {
