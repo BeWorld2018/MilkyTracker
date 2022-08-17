@@ -45,8 +45,8 @@ enum
 	BlockTimeOut = 5000
 };
 
-MasterMixer::MasterMixer(mp_uint32 sampleRate, 
-						 mp_uint32 bufferSize/* = 0*/, 
+MasterMixer::MasterMixer(mp_uint32 sampleRate,
+						 mp_uint32 bufferSize/* = 0*/,
 						 mp_uint32 numDevices/* = 1*/,
 						 AudioDriverInterface* audioDriver/* = 0*/) :
 	listener(0),
@@ -62,7 +62,8 @@ MasterMixer::MasterMixer(mp_uint32 sampleRate,
 	audioDriver(audioDriver),
 	initialized(false),
 	started(false),
-	paused(false)
+	paused(false),
+	mixDownProxy(0)
 {
 }
 
@@ -74,32 +75,32 @@ MasterMixer::~MasterMixer()
 	delete[] devices;
 }
 
-void MasterMixer::setMasterMixerNotificationListener(MasterMixerNotificationListener* listener) 
-{ 
-	this->listener = listener; 
+void MasterMixer::setMasterMixerNotificationListener(MasterMixerNotificationListener* listener)
+{
+	this->listener = listener;
 }
 
 mp_sint32 MasterMixer::openAudioDevice()
 {
 	if (initialized)
 		return 0;
-		
+
 	if (audioDriver == 0)
 	{
 		if (audioDriverManager == 0)
 			audioDriverManager = new AudioDriverManager();
-			
+
 		audioDriver = audioDriverManager->getPreferredAudioDriver();
 	}
-		
+
 	if (bufferSize == 0)
 	{
 		bufferSize = audioDriver->getPreferredBufferSize();
 		notifyListener(MasterMixerNotificationBufferSizeChanged);
 	}
-		
+
 	cleanup();
-	
+
 	mp_sint32 res = audioDriver->initDevice(bufferSize*MP_NUMCHANNELS, sampleRate, this);
 	if (res < 0)
 		return res;
@@ -110,7 +111,7 @@ mp_sint32 MasterMixer::openAudioDevice()
 		// if the result is positive it reflects the number of 16 bit words
 		// in the obtained buffer => divide by MP_NUMCHANNELS is the correct buffer size
 		bufferSize = res / MP_NUMCHANNELS;
-		notifyListener(MasterMixerNotificationBufferSizeChanged);		
+		notifyListener(MasterMixerNotificationBufferSizeChanged);
 	}
 
 	if (audioDriver->getMixFrequency() != sampleRate)
@@ -118,10 +119,8 @@ mp_sint32 MasterMixer::openAudioDevice()
 		sampleRate = audioDriver->getMixFrequency();
 		notifyListener(MasterMixerNotificationSampleRateChanged);
 	}
-	
-	buffer = new mp_sint32[bufferSize*MP_NUMCHANNELS];	
-	
-	initialized = true;	
+
+	initialized = true;
 	return 0;
 }
 
@@ -129,7 +128,7 @@ mp_sint32 MasterMixer::closeAudioDevice()
 {
 	if (started)
 		stop();
-	
+
 	if (!initialized)
 		return 0;
 
@@ -145,6 +144,8 @@ mp_sint32 MasterMixer::closeAudioDevice()
 		initialized = false;
 	}
 
+	buffer = NULL;
+
 	return res;
 }
 
@@ -152,7 +153,7 @@ mp_sint32 MasterMixer::start()
 {
 	if (started)
 		return 0;
-	
+
 	mp_sint32 res = 0;
 
 	if (!initialized)
@@ -161,31 +162,31 @@ mp_sint32 MasterMixer::start()
 		if (res < 0)
 			return res;
 	}
-		
-	res = audioDriver->start();	
+
+	res = audioDriver->start();
 	if (res != 0)
 		return res;
-	
+
 	started = true;
 	return 0;
 }
 
 mp_sint32 MasterMixer::stop()
-{	
+{
 	if (!started)
 		return 0;
 
 	mp_sint32 res = audioDriver->stop();
 	if (res == 0)
 		started = false;
-		
+
 	return res;
 }
 
 mp_sint32 MasterMixer::pause()
 {
-	mp_sint32 res = audioDriver->pause();	
-	paused = true;	
+	mp_sint32 res = audioDriver->pause();
+	paused = true;
 	return res;
 }
 
@@ -198,15 +199,13 @@ mp_sint32 MasterMixer::resume()
 mp_sint32 MasterMixer::setBufferSize(mp_uint32 bufferSize)
 {
 	if (bufferSize != this->bufferSize)
-	{		
+	{
 		mp_sint32 res = closeAudioDevice();
 		if (res != 0)
 			return res;
-		
+
 		this->bufferSize = bufferSize;
-		delete[] buffer;
-		buffer = NULL;
-		
+
 		notifyListener(MasterMixerNotificationBufferSizeChanged);
 	}
 	return 0;
@@ -219,7 +218,7 @@ mp_sint32 MasterMixer::setSampleRate(mp_uint32 sampleRate)
 		mp_sint32 res = closeAudioDevice();
 		if (res != 0)
 			return res;
-			
+
 		this->sampleRate = sampleRate;
 
 		notifyListener(MasterMixerNotificationSampleRateChanged);
@@ -254,11 +253,11 @@ bool MasterMixer::removeDevice(Mixable* device, bool blocking/* = true*/)
 			{
 				devices[i].markedForRemoval = false;
 				devices[i].mixable = 0;
-				return true;				
+				return true;
 			}
-		
+
 			devices[i].markedForRemoval = true;
-			
+
 			if (blocking)
 			{
 				// this is going to loop infinitely when the audio device is not running
@@ -267,7 +266,7 @@ bool MasterMixer::removeDevice(Mixable* device, bool blocking/* = true*/)
 					waitMillis = 1.0;
 				if (waitMillis > (double)BlockTimeOut)
 					waitMillis = (double)BlockTimeOut;
-				
+
 				mp_uint32 time = 0;
 				const mp_uint32 sleepTime = 10;
 				while (devices[i].mixable && time < (mp_uint32)waitMillis)
@@ -275,7 +274,7 @@ bool MasterMixer::removeDevice(Mixable* device, bool blocking/* = true*/)
 					audioDriver->msleep(sleepTime);
 					time+=sleepTime;
 				}
-				
+
 				// timeout
 				if (time >= waitMillis && devices[i].mixable)
 				{
@@ -283,7 +282,7 @@ bool MasterMixer::removeDevice(Mixable* device, bool blocking/* = true*/)
 					devices[i].markedForRemoval = false;
 				}
 			}
-			
+
 			return true;
 		}
 	}
@@ -314,7 +313,7 @@ bool MasterMixer::pauseDevice(Mixable* device, bool blocking/* = true*/)
 			{
 				devices[i].markedForPause = false;
 				devices[i].paused = true;
-				return true;				
+				return true;
 			}
 
 			devices[i].markedForPause = true;
@@ -327,7 +326,7 @@ bool MasterMixer::pauseDevice(Mixable* device, bool blocking/* = true*/)
 					waitMillis = 1.0;
 				if (waitMillis > (double)BlockTimeOut)
 					waitMillis = (double)BlockTimeOut;
-				
+
 				mp_uint32 time = 0;
 				const mp_uint32 sleepTime = 10;
 				while (!devices[i].paused && time < (mp_uint32)waitMillis)
@@ -335,7 +334,7 @@ bool MasterMixer::pauseDevice(Mixable* device, bool blocking/* = true*/)
 					audioDriver->msleep(sleepTime);
 					time+=sleepTime;
 				}
-				
+
 				// timeout
 				if (time >= waitMillis && !devices[i].paused)
 				{
@@ -347,7 +346,7 @@ bool MasterMixer::pauseDevice(Mixable* device, bool blocking/* = true*/)
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
@@ -361,7 +360,7 @@ bool MasterMixer::resumeDevice(Mixable* device)
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
@@ -378,35 +377,46 @@ bool MasterMixer::isDevicePaused(Mixable* device)
 	return false;
 }
 
-void MasterMixer::mixerHandler(mp_sword* buffer, mp_uint32 numChannels /* = 0 */, mp_sword** buffers /* = 0 */)
+void MasterMixer::mixerHandler(mp_sword* buffer, MixerProxy * mixerProxy)
 {
-	bool doMix = numChannels == 0;
-	mp_sword * bufferPtrs[MAX_DIRECTOUT_CHANNELS] = { 0 };
+	bool mixDown = buffer && !mixerProxy;
 
-	// Prepare the mix buffer(s)
-	if (!disableMixing) {
-		if(doMix) {
-			prepareBuffer();
-		} else {
-			for(int i = 0; i < numChannels; i++) {
-				bufferPtrs[i] = buffers[i];
-				memset(bufferPtrs[i], 0, bufferSize * sizeof(mp_sword));
-			}
+	// Create mix-down proxy for compatibility reasons
+	if(mixDown) {
+		//
+		// The mix-down proxy initializes (in lock()) an internal mix buffer (slot 0)
+		// which ChannelMixer and its resamplers write its samples to.
+		//
+		// In unlock() we clip and bounce this mix buffer (slot 0) to the
+		// mix-down buffer (slot 1)
+		//
+		if(!mixDownProxy) {
+			mixDownProxy = new MixerProxyMixDown();
+
+            // Lock initially to prepare mix buffer
+            mixDownProxy->lock(bufferSize, sampleShift);
 		}
+		mixerProxy = mixDownProxy;
+
+		// Set mix down buffer
+        mixerProxy->setBuffer<mp_sword>(MixerProxyMixDown::MixDownBuffer, buffer);
 	}
 
+	// Lock the mix buffer(s)
+	if (!disableMixing)
+		mixerProxy->lock(bufferSize, sampleShift);
+
+	// Perform mixing
 	const mp_sint32 numDevices = this->numDevices;
-	const mp_uint32 bufferSize = this->bufferSize;
-	mp_sint32* mixBuffer = this->buffer;
-	
-	DeviceDescriptor* device = this->devices;	
+
+	DeviceDescriptor* device = this->devices;
 	for (mp_sint32 i = 0; i < numDevices; i++, device++)
 	{
 		if (device->markedForRemoval && device->mixable)
 		{
 			device->markedForRemoval = false;
 			device->mixable = 0;
-		}  
+		}
 		else if (device->mixable && device->markedForPause)
 		{
 			device->markedForPause = false;
@@ -414,12 +424,18 @@ void MasterMixer::mixerHandler(mp_sword* buffer, mp_uint32 numChannels /* = 0 */
 		}
 		else if (device->mixable && !device->paused)
 		{
-			device->mixable->mix(mixBuffer, bufferSize, numChannels, bufferPtrs);
+			device->mixable->mix(mixerProxy);
 		}
 	}
 
-	if (doMix && !disableMixing)
-		swapOutBuffer(buffer);
+	// Unlock and obtain mix buffer
+	if (!disableMixing) {
+		mixerProxy->unlock(filterHook);
+
+		if(mixDown) {
+			this->buffer = mixerProxy->getBuffer<mp_sint32>(MixerProxyMixDown::MixBuffer);
+		}
+	}
 }
 
 void MasterMixer::notifyListener(MasterMixerNotifications notification)
@@ -436,95 +452,8 @@ void MasterMixer::cleanup()
 	if (initialized)
 		closeAudioDevice();
 
-	if (buffer)
-	{
-		delete[] buffer;	
-		buffer = 0;
-	}
-}
-
-inline void MasterMixer::prepareBuffer()
-{
-	memset(buffer, 0, bufferSize*MP_NUMCHANNELS*sizeof(mp_sint32)); 
-}
-
-inline void MasterMixer::swapOutBuffer(mp_sword* bufferOut)
-{
-	if (filterHook)
-		filterHook->mix(buffer, bufferSize);
-
-	mp_sint32* bufferIn = buffer;
-	const mp_sint32 sampleShift = this->sampleShift; 
-	const mp_sint32 lowerBound = -((128<<sampleShift)*256); 
-	const mp_sint32 upperBound = ((128<<sampleShift)*256)-1;
-	const mp_sint32 bufferSize = this->bufferSize*MP_NUMCHANNELS;
-	
-	for (mp_sint32 i = 0; i < bufferSize; i++)
-	{
-		mp_sint32 b = *bufferIn++;
-		if (b>upperBound) b = upperBound; 
-		else if (b<lowerBound) b = lowerBound; 
-		*bufferOut++ = b>>sampleShift;
-	}
-	
-	/*
-	mp_sint32* buffer32 = mixbuff32;
-	mp_sint32 lsampleShift = sampleShift; 
-	mp_sint32 lowerBound = -((128<<sampleShift)*256); 
-	mp_sint32 upperBound = ((128<<sampleShift)*256)-1;
-	
-	if (!autoAdjustPeak)
-	{
-		for (mp_uint32 i = 0; i < mixBufferSize*MP_NUMCHANNELS; i++)
-		{
-			mp_sint32 b = *buffer32++;
-			if (b>upperBound) b = upperBound; 
-			else if (b<lowerBound) b = lowerBound; 
-			*buffer16++ = b>>lsampleShift;
-		}
-	}
-	else
-	{
-		lsampleShift = sampleShift; 
-		lowerBound = -((128<<sampleShift)*256); 
-		upperBound = ((128<<sampleShift)*256)-1;
-		mp_sint32 lastPeakValue = 0;
-		
-		for (mp_uint32 i = 0; i < mixBufferSize*MP_NUMCHANNELS; i++)
-		{
-			mp_sint32 b = *buffer32++;
-	
-			if (b>upperBound) 
-			{
-				if (abs(b) > lastPeakValue)
-					lastPeakValue = abs(b);
-					
-				b = upperBound; 
-			}
-			else if (b<lowerBound) 
-			{
-				if (abs(b) > lastPeakValue)
-					lastPeakValue = abs(b);
-
-				b = lowerBound; 
-			}
-			*buffer16++ = b>>lsampleShift;
-		}
-		
-		if (lastPeakValue)
-		{
-			float v = 32768.0f*(1<<lsampleShift) / (float)lastPeakValue;
-			masterVolume = (mp_sint32)((float)masterVolume*v);
-			if (masterVolume > 256)
-				masterVolume = 256;
-		}
-		//else
-		//{
-		//	masterVolume = 256;
-		//	sampleShift = 0;
-		//}
-		
-	}*/
+	delete mixDownProxy;
+	mixDownProxy = 0;
 }
 
 const char*	MasterMixer::getCurrentAudioDriverName() const
@@ -545,7 +474,7 @@ bool MasterMixer::setCurrentAudioDriverByName(const char* name)
 	AudioDriverInterface* newAudioDriver = audioDriverManager->getAudioDriverByName(name);
 	if (newAudioDriver == 0)
 	{
-		newAudioDriver = audioDriverManager->getPreferredAudioDriver();	
+		newAudioDriver = audioDriverManager->getPreferredAudioDriver();
 		result = false;
 	}
 
@@ -558,8 +487,8 @@ bool MasterMixer::setCurrentAudioDriverByName(const char* name)
 	{
 		err = closeAudioDevice();
 	}
-	
-	audioDriver = newAudioDriver;	
+
+	audioDriver = newAudioDriver;
 
 	return result;
 }
@@ -574,18 +503,19 @@ const AudioDriverManager* MasterMixer::getAudioDriverManager() const
 
 mp_sint32 MasterMixer::getCurrentSample(mp_sint32 position, mp_sint32 channel)
 {
+	if (!buffer)
+		return 0;
+
 	if (position < 0)
-	{
 		position = abs(position);
-	}
-	if (position > (mp_sint32)bufferSize-1)
-	{
+
+	if (position > (mp_sint32)bufferSize-1) {
 		position %= bufferSize*2;
 		position -= bufferSize;
 		position = bufferSize-1-position;
 	}
-	
-	mp_sint32 val = (mp_sword)this->buffer[position*MP_NUMCHANNELS+channel];
+
+	mp_sint32 val = (mp_sword) this->buffer[position*MP_NUMCHANNELS+channel];
 	if (val < -32768)
 		val = -32768;
 	if (val > 32767)
@@ -596,6 +526,9 @@ mp_sint32 MasterMixer::getCurrentSample(mp_sint32 position, mp_sint32 channel)
 
 mp_sint32 MasterMixer::getCurrentSamplePeak(mp_sint32 position, mp_sint32 channel)
 {
+	if (!buffer)
+		return 0;
+
 	if (audioDriver == 0)
 		return 0;
 
@@ -605,17 +538,17 @@ mp_sint32 MasterMixer::getCurrentSamplePeak(mp_sint32 position, mp_sint32 channe
 	if (audioDriver->supportsTimeQuery())
 	{
 		mp_sword peak = 0;
-		
+
 		for (mp_sint32 p = position-mixBufferSize; p <= position; p++)
 		{
 			mp_sword s = getCurrentSample(p, channel);
 			if (s > peak)
 				peak = s;
 			if (-s > peak)
-				peak = -s;				
+				peak = -s;
 		}
 		return peak;
-	}	
+	}
 	else
 	{
 		mp_sword peak = 0;
@@ -630,8 +563,8 @@ mp_sint32 MasterMixer::getCurrentSamplePeak(mp_sint32 position, mp_sint32 channe
 				peak = s;
 			if (-s > peak)
 				peak = -s;
-		}	
-		
+		}
+
 		return peak;
 	}
 }

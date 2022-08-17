@@ -50,10 +50,12 @@ add_library(milkyplay STATIC
     LoaderPTM.cpp
     LoaderS3M.cpp
     LoaderSTM.cpp
+    LoaderTMM.cpp
     LoaderULT.cpp
     LoaderUNI.cpp
     LoaderXM.cpp
     MasterMixer.cpp
+    MixerProxy.cpp
     PlayerBase.cpp
     PlayerFAR.cpp
     PlayerGeneric.cpp
@@ -85,11 +87,13 @@ add_library(milkyplay STATIC
     MilkyPlayResults.h
     MilkyPlayTypes.h
     Mixable.h
+    MixerProxy.h
     PlayerBase.h
     PlayerFAR.h
     PlayerGeneric.h
     PlayerIT.h
     PlayerSTD.h
+    ProxyProcessor.h
     ResamplerAmiga.h
     ResamplerCubic.h
     ResamplerFactory.h
@@ -115,6 +119,11 @@ target_include_directories(milkyplay
         # Include the CMake-generated version header from the build directory
         # (version string required when saving modules)
         ${PROJECT_BINARY_DIR}/src/tracker
+)
+
+target_link_libraries(milkyplay
+    PRIVATE
+        tmm
 )
 
 # Add platform-specific sources, include paths, definitions and link libraries
@@ -144,13 +153,12 @@ elseif(AROS OR AMIGA)
     target_sources(milkyplay
         PRIVATE
             # Sources
-            drivers/sdl/AudioDriver_SDL.cpp
             drivers/amiga/AudioDriver_Amiga.cpp
             drivers/amiga/AudioDriver_Arne.cpp
             drivers/amiga/AudioDriver_Paula.cpp
 
             # VASM
-            drivers/amiga/AudioDriver_Arne.asm
+            drivers/amiga/AudioDriver_Arne.s
 
             # Headers
             drivers/sdl/AudioDriver_SDL.h

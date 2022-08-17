@@ -37,6 +37,11 @@
 #include "PlayerMaster.h"
 #include "SystemMessage.h"
 #include "version.h"
+#include "SectionDiskMenu.h"
+
+#if defined(__AMIGA__)
+#	define __EXCLUDE_BIGLOGO__
+#endif
 
 // Logo picture
 #if defined(__EXCLUDE_BIGLOGO__) || defined(__LOWRES__)
@@ -49,12 +54,12 @@
 PPSize Tracker::getWindowSizeFromDatabase()
 {
 	PPSize size(PPScreen::getDefaultWidth(), PPScreen::getDefaultHeight());
-	
+
 	if (XMFile::exists(System::getConfigFileName()))
 	{
-		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);		
-		XMFile f(System::getConfigFileName());	
-		settingsDatabaseCopy->serialize(f);			
+		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);
+		XMFile f(System::getConfigFileName());
+		settingsDatabaseCopy->serialize(f);
 		size.height = settingsDatabaseCopy->restore("YRESOLUTION")->getIntValue();
 		size.width = settingsDatabaseCopy->restore("XRESOLUTION")->getIntValue();
 		delete settingsDatabaseCopy;
@@ -66,12 +71,12 @@ PPSize Tracker::getWindowSizeFromDatabase()
 bool Tracker::getFullScreenFlagFromDatabase()
 {
 	bool fullScreen = false;
-	
+
 	if (XMFile::exists(System::getConfigFileName()))
 	{
-		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);		
-		XMFile f(System::getConfigFileName());	
-		settingsDatabaseCopy->serialize(f);			
+		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);
+		XMFile f(System::getConfigFileName());
+		settingsDatabaseCopy->serialize(f);
 		fullScreen = settingsDatabaseCopy->restore("FULLSCREEN")->getBoolValue();
 		delete settingsDatabaseCopy;
 	}
@@ -82,12 +87,12 @@ bool Tracker::getFullScreenFlagFromDatabase()
 pp_int32 Tracker::getScreenScaleFactorFromDatabase()
 {
 	pp_int32 scaleFactor = 1;
-	
+
 	if (XMFile::exists(System::getConfigFileName()))
 	{
-		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);		
-		XMFile f(System::getConfigFileName());	
-		settingsDatabaseCopy->serialize(f);			
+		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);
+		XMFile f(System::getConfigFileName());
+		settingsDatabaseCopy->serialize(f);
 		scaleFactor = settingsDatabaseCopy->restore("SCREENSCALEFACTOR")->getIntValue();
 		delete settingsDatabaseCopy;
 	}
@@ -97,18 +102,22 @@ pp_int32 Tracker::getScreenScaleFactorFromDatabase()
 
 bool Tracker::getShowSplashFlagFromDatabase()
 {
+#ifdef __AMIGA_
+    return false;
+#else
 	bool showSplash = true;
-	
+
 	if (XMFile::exists(System::getConfigFileName()))
 	{
-		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);		
-		XMFile f(System::getConfigFileName());	
-		settingsDatabaseCopy->serialize(f);			
+		TrackerSettingsDatabase* settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);
+		XMFile f(System::getConfigFileName());
+		settingsDatabaseCopy->serialize(f);
 		showSplash = settingsDatabaseCopy->restore("SHOWSPLASH")->getBoolValue();
 		delete settingsDatabaseCopy;
 	}
 
 	return showSplash;
+#endif
 }
 
 #define SPLASH_WAIT_TIME 1000
@@ -122,18 +131,18 @@ void Tracker::showSplash()
 	{
 		pp_int32 startTime = ::PPGetTickCount();
 #if defined(__EXCLUDE_BIGLOGO__) || defined(__LOWRES__)
-		screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4, (int)shade); 		
+		screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4, (int)shade);
 #else
-		screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3, (int)shade); 		
+		screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3, (int)shade);
 #endif
 		shade+=deltaT * (1.0f/6.25f);
 		deltaT = abs((pp_int32)::PPGetTickCount() - startTime);
 		if (!deltaT) deltaT++;
 	}
 #if defined(__EXCLUDE_BIGLOGO__) || defined(__LOWRES__)
-	screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4); 		
+	screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4);
 #else
-	screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3); 		
+	screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3);
 #endif
 	screen->enableDisplay(false);
 }
@@ -142,9 +151,9 @@ void Tracker::hideSplash()
 {
 	screen->clear();
 #if defined(__EXCLUDE_BIGLOGO__) || defined(__LOWRES__)
-	screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4); 		
+	screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4);
 #else
-	screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3); 		
+	screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3);
 #endif
 	screen->enableDisplay(true);
 	float shade = 256.0f;
@@ -153,15 +162,15 @@ void Tracker::hideSplash()
 	{
 		pp_int32 startTime = ::PPGetTickCount();
 #if defined(__EXCLUDE_BIGLOGO__) || defined(__LOWRES__)
-		screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4, (int)shade); 		
+		screen->paintSplash(LogoSmall::rawData, LogoSmall::width, LogoSmall::height, LogoSmall::width*4, 4, (int)shade);
 #else
-		screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3, (int)shade); 		
+		screen->paintSplash(LogoBig::rawData, LogoBig::width, LogoBig::height, LogoBig::width*3, 3, (int)shade);
 #endif
 		shade-=deltaT * (1.0f/6.25f);
 		deltaT = abs((pp_int32)::PPGetTickCount() - startTime);
 		if (!deltaT) deltaT++;
 	}
-	screen->clear(); 	
+	screen->clear();
 
 	screen->pauseUpdate(true);
 	screen->paintControl(getPatternEditorControl(), false);
@@ -175,13 +184,11 @@ void Tracker::startUp(bool forceNoSplash/* = false*/)
 
 	// put up splash screen if desired
 	pp_uint32 startTime = PPGetTickCount();
- 
-	if (!noSplash) 
+
+	if (!noSplash)
 		showSplash();
 	else
-		screen->enableDisplay(false);	
-
-	initUI();	
+		screen->enableDisplay(false);
 
 	pp_int32 dTime;
 
@@ -189,41 +196,50 @@ void Tracker::startUp(bool forceNoSplash/* = false*/)
 	{
 		dTime = (signed)(PPGetTickCount() - startTime);
 		if (dTime > SPLASH_WAIT_TIME) dTime = SPLASH_WAIT_TIME;
-		if (dTime < 0) dTime = 0;	
+		if (dTime < 0) dTime = 0;
 		System::msleep(SPLASH_WAIT_TIME/2 - dTime);
 		startTime = PPGetTickCount();
 	}
-	
+
 	if (XMFile::exists(System::getConfigFileName()))
 	{
 		// create as copy from existing database, so all keys are in there
 		settingsDatabaseCopy = new TrackerSettingsDatabase(*settingsDatabase);
-		
+
 		XMFile f(System::getConfigFileName());
-	
+
 		// restore keys from disk
-		settingsDatabaseCopy->serialize(f);	
-		
+		settingsDatabaseCopy->serialize(f);
+
 		// everything alright, delete old database and take new one
 		delete settingsDatabase;
 		settingsDatabase = settingsDatabaseCopy;
 		settingsDatabaseCopy = NULL;
 	}
 
-	// apply ALL settings, not just the different ones
+	// Pre-read some settings which initUI needs
+	sectionDiskMenu->specialMagic = settingsDatabase->restore("SPECIALMAGIC")->getIntValue() != 0;
+
+	// Creates the user interface
+	initUI();
+
+	// Apply ALL settings, not just the different ones
 	applySettings(settingsDatabase, NULL, true, false);
+
+	// Application of settings could have changed palette, update it
+	updateDisplayPalette();
 
 	// update version information
 	settingsDatabase->store("VERSION", MILKYTRACKER_VERSION);
-	
+
 	// Update info panels
 	updateSongInfo(false);
-	
+
 	updateWindowTitle();
 
 	// try to start playback engine
-	bool masterStart = playerMaster->start();	
-	
+	bool masterStart = playerMaster->start();
+
 	// remove splash screen
 	if (!noSplash)
 	{
@@ -235,10 +251,10 @@ void Tracker::startUp(bool forceNoSplash/* = false*/)
 		hideSplash();
 	}
 	else
-		screen->enableDisplay(true);			
-	
+		screen->enableDisplay(true);
+
 	screen->paint();
-	
+
 	if (!masterStart)
 	{
 		SystemMessage systemMessage(*screen, SystemMessage::MessageSoundDriverInitFailed);

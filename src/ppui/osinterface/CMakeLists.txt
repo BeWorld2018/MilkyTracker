@@ -40,6 +40,11 @@ target_include_directories(osinterface
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
+target_link_libraries(osinterface
+    PRIVATE
+        tmm
+)
+
 # Add platform-specific sources and include paths
 if(APPLE)
     target_sources(osinterface
@@ -90,32 +95,28 @@ elseif(AROS OR AMIGA)
     target_sources(osinterface
         PRIVATE
             # Sources
-            amiga/PPOpenPanel_Amiga.cpp
-            amiga/PPSavePanel_Amiga.cpp
             amiga/AslRequester.cpp
-            posix/PPPath_POSIX.cpp
-            posix/PPSystem_POSIX.cpp
-            sdl/PPMessageBox_SDL.cpp
-            sdl/PPMutex.cpp
-            sdl/PPOpenPanel_SDL.cpp
-            sdl/PPQuitSaveAlert_SDL.cpp
-            sdl/PPSavePanel_SDL.cpp
-            sdl/SDL_ModalLoop.cpp
+            amiga/PPMessageBox_Amiga.cpp
+            amiga/PPMutex.cpp
+            amiga/PPOpenPanel_Amiga.cpp
+            amiga/PPQuitSaveAlert_Amiga.cpp
+            amiga/PPSavePanel_Amiga.cpp
+            amiga/PPPath_Amiga.cpp
+            amiga/PPSystem_Amiga.cpp
 
             # Headers
-            posix/PPMutex.h
             amiga/AslRequester.h
-            posix/PPPath_POSIX.h
+            amiga/PPMutex.h
+            amiga/PPPath_Amiga.h
+            amiga/PPSystem_Amiga.h
             posix/PPSystemString_POSIX.h
-            posix/PPSystem_POSIX.h
-            sdl/PPMutex.h
-            sdl/SDL_ModalLoop.h
     )
 
-    target_include_directories(osinterface PUBLIC posix)
-
-    target_include_directories(osinterface PUBLIC ${SDL_INCLUDE_DIR})
-    target_link_libraries(osinterface PUBLIC ${SDL_LIBRARY})
+    target_include_directories(osinterface
+        PUBLIC
+            amiga
+            posix
+    )
 else()
     target_sources(osinterface
         PRIVATE

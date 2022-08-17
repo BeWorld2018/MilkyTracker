@@ -32,6 +32,7 @@ add_executable(tracker
     DialogPanning.cpp
     DialogQuickChooseInstrument.cpp
     DialogResample.cpp
+    DialogSynth.cpp
     DialogWithValues.cpp
     DialogZap.cpp
     EQConstants.cpp
@@ -44,7 +45,6 @@ add_executable(tracker
     FileIdentificator.cpp
     GlobalColorConfig.cpp
     InputControlListener.cpp
-    LogoBig.cpp
     LogoSmall.cpp
     ModuleEditor.cpp
     ModuleServices.cpp
@@ -85,6 +85,7 @@ add_executable(tracker
     SectionTranspose.cpp
     SectionUpperLeft.cpp
     SongLengthEstimator.cpp
+    SynthHarmonica.cpp
     SystemMessage.cpp
     TabHeaderControl.cpp
     TabManager.cpp
@@ -119,6 +120,7 @@ add_executable(tracker
     DialogPanning.h
     DialogQuickChooseInstrument.h
     DialogResample.h
+    DialogSynth.h
     DialogWithValues.h
     DialogZap.h
     EQConstants.h
@@ -173,6 +175,7 @@ add_executable(tracker
     SectionTranspose.h
     SectionUpperLeft.h
     SongLengthEstimator.h
+    SynthHarmonica.h
     SystemMessage.h
     TabHeaderControl.h
     TabManager.h
@@ -208,6 +211,7 @@ target_link_libraries(tracker
     milkyplay
     osinterface
     ppui
+    tmm
 )
 
 if(CMAKE_VERSION GREATER_EQUAL 3.12)
@@ -282,11 +286,18 @@ elseif(WIN32)
 elseif(AROS OR AMIGA)
     target_sources(tracker PRIVATE
         # Sources
-        sdl-1.2/SDL_KeyTranslation.cpp
-        sdl-1.2/SDL_Main.cpp
+        amiga/Amiga_KeyTranslation.cpp
+        amiga/Amiga_Main.cpp
+        amiga/Amiga_StackSwap.cpp
+        amiga/AmigaApplication.cpp
 
         # Headers
-        sdl-1.2/SDL_KeyTranslation.h
+        amiga/Amiga_KeyTranslation.h
+        amiga/AmigaApplication.h
+    )
+
+    target_include_directories(tracker PRIVATE
+        ${PROJECT_SOURCE_DIR}/include/amiga
     )
 else()
     target_sources(tracker PRIVATE
@@ -355,10 +366,15 @@ elseif(WIN32)
     set_target_properties(tracker PROPERTIES WIN32_EXECUTABLE TRUE)
 
     target_link_libraries(tracker midi)
+
+    if(MINGW)
+        set_target_properties(tracker PROPERTIES LINK_FLAGS -static)
+    endif()
 elseif(AMIGA)
     if(MORPHOS AND NOT WARPOS)
         target_link_libraries(tracker -ldebug)
     endif()
+    set_target_properties(tracker PROPERTIES LINK_FLAGS "-Xlinker -Map=milkytracker.map")
 else()
     if(ALSA_FOUND AND RTMIDI_FOUND)
         target_compile_definitions(tracker PRIVATE -DHAVE_LIBRTMIDI)
@@ -385,6 +401,13 @@ if(APPLE OR WIN32 OR AROS OR AMIGA)
     set(INSTALL_DEST .)
 else()
     set(INSTALL_DEST ${CMAKE_INSTALL_BINDIR})
+endif()
+
+# Big logo only for big platforms
+if(NOT AROS AND NOT AMIGA)
+    target_sources(tracker PRIVATE
+        LogoBig.cpp
+    )
 endif()
 
 install(TARGETS tracker DESTINATION ${INSTALL_DEST})

@@ -9,6 +9,8 @@
 #define __AUDIODRIVER_AMIGA_H__
 
 #include "AudioDriverBase.h"
+#include "MixerProxy.h"
+#include "ProxyProcessor.h"
 
 #include <exec/exec.h>
 #include <clib/exec_protos.h>
@@ -21,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
-//#define DEBUG_DRIVER            1
+#define DEBUG_DRIVER            0
 
 #define CIAAPRA                 0xbfe001
 
@@ -35,14 +37,19 @@
 #define SCANLINES               312
 #define REFRESHRATE				50
 
+extern volatile struct Custom custom;
+extern volatile struct CIA ciaa, ciab;
+
 class AudioDriverInterface_Amiga : public AudioDriverBase
 {
+protected:
+	AudioDriverInterface_Amiga();
+	virtual ~AudioDriverInterface_Amiga();
 public:
-	virtual mp_sint32  	bufferAudio();
+	virtual void bufferAudio();
 };
 
-template<typename SampleType>
-class AudioDriver_Amiga : public AudioDriverInterface_Amiga
+class AudioDriver_Amiga : public AudioDriverInterface_Amiga, public ProxyProcessor
 {
 protected:
 	enum OutputMode {
@@ -51,12 +58,12 @@ protected:
 		ResampleHW
 	};
 
+	MixerProxy * 		mixerProxy;
+
 	bool                allocated;
 	bool                irqEnabled;
 
-	OutputMode          outputMode;
-
-	mp_uint32           nChannels, sampleSize;
+	mp_uint32           nChannels;
 
 	mp_sint32   		idxRead, idxWrite;
 	mp_uint32           chunkSize, ringSize, fetchSize;
@@ -66,16 +73,6 @@ protected:
 	mp_sint32           statAudioBufferReset, statAudioBufferResetMedian;
 	mp_sint32           statRingBufferFull, statRingBufferFullMedian;
 	mp_sint32           statCountPerSecond;
-
-	mp_sword ** 		chanFetch;
-
-	SampleType ** 		chanRingPtrs;
-	SampleType ** 		chanRing;
-
-	mp_sword * 			samplesFetched;
-
-	SampleType * 		samplesLeft;
-	SampleType * 		samplesRight;
 
 	struct Interrupt *	irqPlayAudio;
 	struct Interrupt *	irqAudioOld;
@@ -89,16 +86,17 @@ protected:
 						AudioDriver_Amiga();
 	virtual				~AudioDriver_Amiga();
 
+	virtual mp_sint32   allocResources() = 0;
 	virtual void        initHardware() = 0;
+	virtual void   		deallocResources() = 0;
+
 	virtual void        bufferAudioImpl() = 0;
-	virtual void 		playAudioImpl() = 0;
+	virtual void 		playAudioImpl() { }
 
-	virtual mp_uint32   getChannels() const = 0;
-	virtual mp_uint32   getSampleSize() const = 0;
+	virtual void		setGlobalVolume(mp_ubyte volume) { }
 
-	virtual void		setGlobalVolume(mp_ubyte volume) = 0;
-	virtual void    	disableDMA() = 0;
-	virtual void      	enableDMA() = 0;
+	virtual void    	disableDMA() { }
+	virtual void      	enableDMA() { }
 
 	virtual	mp_sint32	initDevice(mp_sint32 bufferSizeInWords, mp_uint32 mixFrequency, MasterMixer* mixer);
 	virtual	mp_sint32	closeDevice();
@@ -115,8 +113,10 @@ protected:
 	virtual mp_sint32   getStatValue(mp_uint32 key);
 
 public:
-	void 				playAudio();
-	virtual mp_sint32  	bufferAudio();
+	virtual void 		playAudio();
+	virtual void 		bufferAudio();
+
+	virtual bool        isMultiChannel() const { return false; }
 };
 
 #endif

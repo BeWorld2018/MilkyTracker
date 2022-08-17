@@ -47,15 +47,15 @@ void PPPathEntry_POSIX::create(const PPSystemString& path, const PPSystemString&
 {
 	this->name = name;
 	PPSystemString fullPath = path;
-	
+
 	fullPath.append(name);
 
 	struct stat file_status;
-	
-	if (::stat(fullPath, &file_status) == 0) 
+
+	if (::stat(fullPath, &file_status) == 0)
 	{
 		size = file_status.st_size;
-		
+
 		if (S_ISDIR(file_status.st_mode))
 			type = Directory;
 		//if (S_ISLNK(file_status.st_mode))
@@ -71,10 +71,10 @@ void PPPathEntry_POSIX::create(const PPSystemString& path, const PPSystemString&
 		if (S_ISREG(file_status.st_mode))
 			type = File;
 	}
-	else 
+	else
 	{ /* stat() call failed and returned '-1'. */
 		type = Nonexistent;
-	}		
+	}
 }
 
 bool PPPathEntry_POSIX::isHidden() const
@@ -87,7 +87,7 @@ bool PPPath_POSIX::updatePath()
 	return chdir(current) == 0;
 }
 
-PPPath_POSIX::PPPath_POSIX() 
+PPPath_POSIX::PPPath_POSIX()
 {
 	current = getCurrent();
 	updatePath();
@@ -101,22 +101,26 @@ PPPath_POSIX::PPPath_POSIX(const PPSystemString& path) :
 
 const PPSystemString PPPath_POSIX::getCurrent()
 {
-	char cwd[PPMAX_DIR_PATH+1];
-	memset(cwd, 0, sizeof(cwd));
-	
+	char * cwd= new char[PPMAX_DIR_PATH+1];
+	*cwd = 0;
+
 	getcwd(cwd, PPMAX_DIR_PATH+1);
 
 	PPSystemString path(cwd);
-	
 	path.ensureTrailingCharacter(getPathSeparatorAsASCII());
+
+	delete[] cwd;
+
 	return path;
 }
-	
+
 bool PPPath_POSIX::change(const PPSystemString& path)
 {
 	PPSystemString old = current;
 	current = path;
+
 	current.ensureTrailingCharacter(getPathSeparatorAsASCII());
+
 	bool res = updatePath();
 	if (res)
 		return true;
@@ -135,15 +139,15 @@ bool PPPath_POSIX::stepInto(const PPSystemString& directory)
 	current = old;
 	return false;
 }
-	
+
 const PPPathEntry* PPPath_POSIX::getFirstEntry()
 {
 	dir = ::opendir(current);
-	if (!dir) 
+	if (!dir)
 	{
 		return NULL;
 	}
-	
+
 	return getNextEntry();
 }
 
@@ -154,10 +158,10 @@ const PPPathEntry* PPPath_POSIX::getNextEntry()
 	{
 		PPSystemString file(entry->d_name);
 		this->entry.create(current, file);
-		
+
 		return &this->entry;
 	}
-	
+
 	::closedir(dir);
 	return NULL;
 }
@@ -211,8 +215,8 @@ const PPSystemString PPPath_POSIX::getPathSeparator() const
 bool PPPath_POSIX::fileExists(const PPSystemString& fileName) const
 {
 	struct stat file_status;
-	
-	if (::stat(fileName, &file_status) == 0) 
+
+	if (::stat(fileName, &file_status) == 0)
 	{
 		return (S_ISREG(file_status.st_mode)) != 0;
 	}

@@ -29,7 +29,7 @@
 
 /*
  *  MilkyPlayCommon.h
- *  MilkyPlay 
+ *  MilkyPlay
  *
  *  Created by Peter Barth on 23.12.04.
  *
@@ -59,7 +59,7 @@
 #else
 	#include <assert.h>
 	#define ASSERT assert
-	
+
 	#include <string.h>
 	#include <stdio.h>
 	#include <stdlib.h>

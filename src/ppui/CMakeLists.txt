@@ -35,6 +35,7 @@ add_library(ppui STATIC
     DictionaryKey.cpp
     Event.cpp
     Font.cpp
+    Graphics_8BIT.cpp
     Graphics_15BIT.cpp
     Graphics_16BIT.cpp
     Graphics_24bpp_generic.cpp
@@ -109,7 +110,11 @@ target_include_directories(ppui
         osinterface
 )
 
-target_link_libraries(ppui PRIVATE osinterface)
+target_link_libraries(ppui
+    PRIVATE 
+        osinterface
+        tmm
+)
 
 # Add platform-specific sources and include paths
 if(APPLE)
@@ -136,6 +141,28 @@ elseif(WIN32)
         PUBLIC
             win32
     )
+elseif(AROS OR AMIGA)
+    enable_language(ASM_VASM)
+
+    target_sources(ppui
+        PRIVATE
+            # Sources
+            amiga/DisplayDevice_Amiga.cpp
+            amiga/DisplayDevice_Amiga.s
+
+            # Headers
+            amiga/DisplayDevice_Amiga.h
+    )
+    target_include_directories(ppui
+        PUBLIC
+            osinterface/amiga
+            osinterface/posix
+            amiga
+    )
+    target_include_directories(ppui
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/include/amiga
+    )
 else()
     target_sources(ppui
         PRIVATE
@@ -147,17 +174,11 @@ else()
             sdl/DisplayDeviceFB_SDL.h
             sdl/DisplayDevice_SDL.h
     )
-    if(AROS OR AMIGA)
-        target_include_directories(ppui
-            PUBLIC
-                osinterface/amiga
-                osinterface/posix
-                sdl
-                ${SDL_INCLUDE_DIR}
-        )
-    else()
-        target_include_directories(ppui PUBLIC sdl ${SDL2_INCLUDE_DIRS})
-    endif()
+    target_include_directories(ppui
+        PUBLIC
+            sdl
+            ${SDL2_INCLUDE_DIRS}
+    )
 endif()
 
 if(APPLE)
