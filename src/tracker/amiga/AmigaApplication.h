@@ -12,7 +12,7 @@
 #include <vampire/vampire.h>
 
 #include <proto/vampire.h>
-#include <proto/picasso96.h>
+#include <proto/Picasso96.h>
 #include <proto/cybergraphics.h>
 
 #include <clib/exec_protos.h>
@@ -21,7 +21,7 @@
 #include <clib/keymap_protos.h>
 #include <clib/timer_protos.h>
 #include <clib/intuition_protos.h>
-#include <clib/picasso96_protos.h>
+#include <clib/Picasso96_protos.h>
 #include <clib/vampire_protos.h>
 #include <clib/icon_protos.h>
 #include <clib/gadtools_protos.h>

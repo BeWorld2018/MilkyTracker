@@ -33,27 +33,6 @@
 
 #include <unistd.h>
 
-#if defined(AMIGA_SAGA_PIP)
-#	include <exec/exec.h>
-#	include <intuition/intuitionbase.h>
-#	include <vampire/saga.h>
-#	include <vampire/vampire.h>
-
-#	include <proto/exec.h>
-#	include <proto/intuition.h>
-#	include <proto/vampire.h>
-
-#	include <hardware/custom.h>
-#	include <hardware/dmabits.h>
-#	include <hardware/intbits.h>
-#	include <hardware/cia.h>
-
-extern struct ExecBase *SysBase;
-extern struct IntuitionBase* IntuitionBase;
-
-struct Library* VampireBase = NULL;
-#endif
-
 PPDisplayDeviceFB::PPDisplayDeviceFB(
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_Surface*& screen,
@@ -158,74 +137,6 @@ PPDisplayDeviceFB::PPDisplayDeviceFB(
 		fprintf(stderr, "Could not set video mode: %s\n", SDL_GetError());
 		exit(2);
 	}
-
-	// Now we know the final BPP, init SAGA PiP
-#	if defined(AMIGA_SAGA_PIP)
-	if(bpp == 16) {
-		struct Screen* screen = NULL;
-
-		if (!(SysBase->AttnFlags & (1 << 10))) {
-			fprintf(stderr, "No AC68080 processor!");
-			exit(1);
-		}
-
-		if (!(VampireBase = OpenResource(V_VAMPIRENAME))) {
-			fprintf(stderr, "Could not find vampire.resource!\n");
-			exit(2);
-		}
-
-		if (VampireBase->lib_Version < 45) {
-			fprintf(stderr, "Vampire.resource version needs to be 45 or higher!\n");
-			exit(3);
-		}
-
-		if (V_EnableAMMX(V_AMMX_V2) == VRES_ERROR) {
-			fprintf(stderr, "Cannot enable AMMX V2+!\n");
-			exit(4);
-		}
-
-		if (screen = LockPubScreen(NULL)) {
-			APTR allocator;
-			pp_uint32 i;
-
-			if (allocator = V_AllocExpansionPort(V_PIP, "MilkyTracker")) {
-				fprintf(stderr, "SAGA PiP already in use! (by: %s)\n", allocator);
-				exit(6);
-			}
-			fprintf(stdout, "Initialized SAGA PiP with %ld bpp\n", bpp);
-
-			pubScreen = screen;
-
-			// Allocate screen buffers for SAGA PiP pages
-			for(i = 0; i < SAGA_PAGES; i++) {
-				void * b = (void *) malloc((theSurface->pitch * getSize().height * 2) + 16);
-				if(!b) {
-					fprintf(stderr, "Could not allocate enough memory for SAGA buffer %ld\n", i);
-					exit(8);
-				}
-
-				unalignedSAGABuffers[i] = b;
-
-				// And align
-				b = (void *) (((pp_uint32) b + 15) & ~ (pp_uint32) 0xf);
-				memset(b, 0, theSurface->pitch * getSize().height * 2);
-				alignedSAGABuffers[i] = b;
-			}
-
-			// Initialize PIP output
-			currentSAGAPage = 0;
-			WRITE16(SAGA_PIP_COLORKEY, 0);
-			WRITE16(SAGA_PIP_PIXFMT, SAGAF_RGB16);
-			WRITE32(SAGA_PIP_BPLPTR, (ULONG) alignedSAGABuffers[SAGA_PAGES - 1]);
-
-			UnlockPubScreen(NULL, screen);
-		}
-	} else {
-		fprintf(stderr, "Could not initialize SAGA PiP: Only 16 bpp are supported\n");
-		exit(7);
-	}
-#	endif
-
 #endif
 
 	// Create a PPGraphics context based on bpp
@@ -329,22 +240,6 @@ PPDisplayDeviceFB::~PPDisplayDeviceFB()
 
 	SDL_FreeSurface(theSurface);
 
-#if defined(AMIGA_SAGA_PIP)
-	WRITE16(SAGA_PIP_PIXFMT,   0); // DMA OFF
-	WRITE16(SAGA_PIP_X0,       0);
-	WRITE16(SAGA_PIP_Y0,       0);
-	WRITE16(SAGA_PIP_X1,       0);
-	WRITE16(SAGA_PIP_Y1,       0);
-	WRITE16(SAGA_PIP_COLORKEY, 0);
-	WRITE32(SAGA_PIP_BPLPTR,   0);
-
-	V_FreeExpansionPort(V_PIP);
-
-	for(i = 0; i < SAGA_PAGES; i++) {
-		free(unalignedSAGABuffers[i]);
-	}
-#endif
-
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_DestroyRenderer(theRenderer);
 	SDL_DestroyWindow(theWindow);
@@ -353,51 +248,6 @@ PPDisplayDeviceFB::~PPDisplayDeviceFB()
 	delete[] temporaryBuffer;
 	// base class is responsible for deleting currentGraphics
 }
-
-#if defined(AMIGA_SAGA_PIP)
-struct Window * SDL_AmigaWindowAddr(void);
-
-void PPDisplayDeviceFB::setSAGAPiPSize()
-{
-	ULONG x0 = 0, y0 = 0;
-	ULONG x1 = 0, y1 = 0;
-
-	struct Window * window = SDL_AmigaWindowAddr();
-
-	if (window && pubScreen == IntuitionBase->FirstScreen) {
-		x0 = SAGA_PIP_DELTAX + window->LeftEdge + pubScreen->LeftEdge + 2;
-		y0 = SAGA_PIP_DELTAY + window->BorderTop + window->TopEdge + pubScreen->TopEdge + 0;
-
-		if ((x0 + window->GZZWidth - 16 - 64) < pubScreen->Width) {
-			x1 = x0 + window->GZZWidth;
-			y1 = y0 + window->GZZHeight;
-		} else {
-			x0 = 0;
-			y0 = 0;
-		}
-	}
-
-	WRITE16(SAGA_PIP_X0, x0);
-	WRITE16(SAGA_PIP_Y0, y0);
-	WRITE16(SAGA_PIP_X1, x1);
-	WRITE16(SAGA_PIP_Y1, y1);
-
-	// Only do that if we're not writing
-	if(currentGraphics->lock) {
-		// Display new page
-		WRITE32(SAGA_PIP_BPLPTR, (ULONG) alignedSAGABuffers[currentSAGAPage]);
-
-		// Select new page
-		pp_uint32 nextSAGAPage = currentSAGAPage + 1;
-		if(nextSAGAPage == SAGA_PAGES)
-			nextSAGAPage = 0;
-
-		// And copy over data
-		memcpy(alignedSAGABuffers[nextSAGAPage], alignedSAGABuffers[currentSAGAPage], theSurface->pitch * getSize().height * 2);
-		currentSAGAPage = nextSAGAPage;
-	}
-}
-#endif
 
 PPGraphicsAbstract* PPDisplayDeviceFB::open()
 {
@@ -414,11 +264,7 @@ PPGraphicsAbstract* PPDisplayDeviceFB::open()
 		if (needsTemporaryBuffer) {
 			static_cast<PPGraphicsFrameBuffer*>(currentGraphics)->setBufferProperties(temporaryBufferPitch, (pp_uint8*)temporaryBuffer);
 		} else {
-#if defined(AMIGA_SAGA_PIP)
-			static_cast<PPGraphicsFrameBuffer*>(currentGraphics)->setBufferProperties(theSurface->pitch, (pp_uint8 *) alignedSAGABuffers[currentSAGAPage]);
-#else
 			static_cast<PPGraphicsFrameBuffer*>(currentGraphics)->setBufferProperties(theSurface->pitch, (pp_uint8 *)theSurface->pixels);
-#endif
 		}
 
 		return currentGraphics;
@@ -460,10 +306,6 @@ void PPDisplayDeviceFB::setPalette(PPColor * pppal)
 
 void PPDisplayDeviceFB::update()
 {
-#if defined(AMIGA_SAGA_PIP)
-	return;
-#endif
-
 	if (!isUpdateAllowed() || !isEnabled())
 		return;
 
@@ -486,10 +328,6 @@ void PPDisplayDeviceFB::update()
 
 void PPDisplayDeviceFB::update(const PPRect& r)
 {
-#if defined(AMIGA_SAGA_PIP)
-	return;
-#endif
-
 	if (!isUpdateAllowed() || !isEnabled())
 		return;
 

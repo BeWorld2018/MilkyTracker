@@ -5,10 +5,10 @@
 
 #include <intuition/intuitionbase.h>
 
-#include <proto/picasso96.h>
+#include <proto/Picasso96.h>
 #include <proto/cybergraphics.h>
 
-#include <clib/picasso96_protos.h>
+#include <clib/Picasso96_protos.h>
 
 extern struct IntuitionBase * IntuitionBase;
 

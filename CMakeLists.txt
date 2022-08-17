@@ -57,6 +57,13 @@ set(VER_YY 03)
 set(VER_ZZ 00)
 set(VER_FULL "${VER_X}.${VER_YY}.${VER_ZZ}")
 
+# Build date Information
+string(TIMESTAMP VER_YEAR "%Y")
+string(TIMESTAMP VER_MONTH "%m")
+string(TIMESTAMP VER_DAY "%d")
+string(REGEX REPLACE "^0+" "" VER_MONTH "${VER_MONTH}")
+string(REGEX REPLACE "^0+" "" VER_DAY "${VER_DAY}")
+
 # Generate version header from the above
 configure_file(
     ${PROJECT_SOURCE_DIR}/src/tracker/version.h.in
@@ -83,7 +90,7 @@ if(APPLE)
 elseif(WIN32)
     set(CPACK_GENERATOR ZIP)
 elseif(AMIGA)
-    set(CPACK_GENERATOR LHA)
+    set(CPACK_GENERATOR ZIP)
 else()
     set(CPACK_GENERATOR "TGZ;DEB;RPM")
 endif()
