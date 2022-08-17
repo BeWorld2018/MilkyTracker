@@ -86,7 +86,13 @@ def buildStep(dockerImage, os, flags) {
 						sh "unzip ../*.zip"
 						sh "mv -fv ./* ./MilkyTracker"
 						sh "cp ../../../resources/packaging/amigaos/milkytracker_dir.info ./MilkyTracker.info"
-						sh "lha -c ../milkytracker-${os}.lha *"
+						def archive_date = sh (
+							script: 'date +"%Y%m%d-%H%M"',
+							returnStdout: true
+						).trim()
+						def release_type = fixed_job_name.replace('/','-');
+
+						sh "lha -c ../milkytracker-${os}-${release_type}-${archive_date}.lha *"
 					}
 					
 					archiveArtifacts artifacts: "**.lha"
