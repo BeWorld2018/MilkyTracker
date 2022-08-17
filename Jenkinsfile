@@ -84,9 +84,10 @@ def buildStep(dockerImage, os, flags) {
 					
 					dir("milkytracker") {
 						sh "unzip ../*.zip"
+						sh "mv -fv ./* ./MilkyTracker"
+						sh "lha -c ../milkytracker-${os}.lha *"
 					}
 					
-					sh "lha -c milkytracker-${os}.lha milkytracker"
 					archiveArtifacts artifacts: "**.lha"
 					stash includes: "**.lha", name: "${os}"
 				}
