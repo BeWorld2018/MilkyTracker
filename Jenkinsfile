@@ -144,11 +144,14 @@ node('master') {
 			}
 		}
 
+		sh "mkdir -p ./publishing/deploy/milkytracker"
+		sh "mv -fv ./*.lha ./publishing/deploy/milkytracker"
+
 		if (env.TAG_NAME) {
-			sh "echo $TAG_NAME > publishing/deploy/STABLE"
+			sh "echo $TAG_NAME > ./publishing/deploy/STABLE"
 			sh "ssh $DEPLOYHOST mkdir -p public_html/downloads/releases/milkytracker/$TAG_NAME"
-			sh "scp -r publishing/deploy/milkytracker/* $DEPLOYHOST:~/public_html/downloads/releases/milkytracker/$TAG_NAME/"
-			sh "scp publishing/deploy/STABLE $DEPLOYHOST:~/public_html/downloads/releases/milkytracker/"
+			sh "scp -r ./publishing/deploy/milkytracker/* $DEPLOYHOST:~/public_html/downloads/releases/milkytracker/$TAG_NAME/"
+			sh "scp ./publishing/deploy/STABLE $DEPLOYHOST:~/public_html/downloads/releases/milkytracker/"
 		} else if (env.BRANCH_NAME.equals('master')) {
 			def deploy_url = sh (
 				script: 'echo "nightly/milkytracker/`date +\'%Y\'`/`date +\'%m\'`/`date +\'%d\'`/"',
@@ -156,8 +159,8 @@ node('master') {
 			).trim()
 			sh "date +'%Y-%m-%d %H:%M:%S' > publishing/deploy/BUILDTIME"
 			sh "ssh $DEPLOYHOST mkdir -p public_html/downloads/nightly/milkytracker/`date +'%Y'`/`date +'%m'`/`date +'%d'`/"
-			sh "scp -r publishing/deploy/milkytracker/* $DEPLOYHOST:~/public_html/downloads/nightly/milkytracker/`date +'%Y'`/`date +'%m'`/`date +'%d'`/"
-			sh "scp publishing/deploy/BUILDTIME $DEPLOYHOST:~/public_html/downloads/nightly/milkytracker/"
+			sh "scp -r ./publishing/deploy/milkytracker/* $DEPLOYHOST:~/public_html/downloads/nightly/milkytracker/`date +'%Y'`/`date +'%m'`/`date +'%d'`/"
+			sh "scp ./publishing/deploy/BUILDTIME $DEPLOYHOST:~/public_html/downloads/nightly/milkytracker/"
 
 			slackSend color: "good", channel: "#jenkins", message: "New ${fixed_job_name} build #${env.BUILD_NUMBER} to web (<https://dl.amigadev.com/${deploy_url}|https://dl.amigadev.com/${deploy_url}>)"
 		}
