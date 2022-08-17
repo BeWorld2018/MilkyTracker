@@ -90,7 +90,7 @@ def buildStep(dockerImage, os, flags) {
 							script: 'date +"%Y%m%d-%H%M"',
 							returnStdout: true
 						).trim()
-						def release_type = fixed_job_name.replace('/','-');
+						def release_type = ("${fixed_job_name}-").replace('/','-').replace('MilkyTracker-','').replace('master-','');
 
 						sh "lha -c ../milkytracker-${os}-${release_type}-${archive_date}.lha *"
 					}
