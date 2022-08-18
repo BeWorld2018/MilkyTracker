@@ -82,16 +82,19 @@ def buildStep(dockerImage, os, flags) {
 					sh "VERBOSE=1 cmake --build . --config Release -- -j${_NPROCESSORS_ONLN}"
 					sh "VERBOSE=1 cmake --build . --config Release --target package -- -j${_NPROCESSORS_ONLN}"
 					def archive_date = sh (
-						script: 'date +"%Y%m%d-%H%M"',
+						script: 'date +"-%Y%m%d-%H%M"',
 						returnStdout: true
 					).trim()
 					def release_type = ("${fixed_job_name}-").replace('/','-').replace('MilkyTracker-','').replace('master-','');
+					if (env.TAG_NAME) {
+						archive_date = '';
+					}
 					dir("milkytracker") {
 						sh "unzip ../*.zip"
 						sh "mv -fv ./* ./MilkyTracker"
 						sh "cp ../../../resources/packaging/amigaos/milkytracker_dir.info ./MilkyTracker.info"
 
-						sh "lha -c ../milkytracker-${os}-${release_type}${archive_date}.lha *"
+						sh "lha -c ../milkytracker-${release_type}${os}${archive_date}.lha *"
 					}
 					
 					if (!env.CHANGE_ID) {
@@ -109,7 +112,7 @@ def buildStep(dockerImage, os, flags) {
     					} catch(err) {
                  
                     	}
-    					sh "github-release upload --user amigaports --repo milkytracker --tag ${release_type_tag} --name \"milkytracker-${os}-${release_type}${archive_date}.lha\" --file milkytracker-${os}-${release_type}${archive_date}.lha"
+    					sh "github-release upload --user amigaports --repo milkytracker --tag ${release_type_tag} --name \"milkytracker-${release_type}${os}${archive_date}.lha\" --file milkytracker-${release_type}${os}${archive_date}.lha --replace"
 					}
 					archiveArtifacts artifacts: "**.lha"
 					stash includes: "**.lha", name: "${os}"
