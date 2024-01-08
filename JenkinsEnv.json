@@ -6,7 +6,7 @@
             "DockerTag": "m68k-amigaos",
             "Dockerfile": "",
             "BuildIfSuccessful": "",
-            "BuildParam": "-DM68K_CPU=68040 -DM68K_FPU=hard"
+            "BuildParam": "-DM68K_CRT=nix20 -DM68K_CPU=68040 -DM68K_FPU=hard"
         },
         {
             "DockerRoot": "amigadev",
