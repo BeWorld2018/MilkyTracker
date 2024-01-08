@@ -14,7 +14,7 @@
             "DockerTag": "x86_64-linux",
             "Dockerfile": "",
             "BuildIfSuccessful": "",
-            "BuildParam": ""
+            "BuildParam": "-DSDL2_DIR=/tmp/libs/lib/cmake/SDL2/"
         }
     ]
 }
