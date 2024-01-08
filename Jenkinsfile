@@ -43,7 +43,7 @@ def buildStep(dockerImage, os, flags, suffix) {
 	def commondir = env.WORKSPACE + '/../' + env.JOB_NAME.replace('%2F','/') + '/';
 
 	try {
-		stage("Building on \"${dockerImage}\" for \"${os}\"...") {
+		stage("Building on \"${dockerImage}\" for \"${os}${suffix}\"...") {
 			properties([pipelineTriggers([githubPush()])])
 
 			def dockerImageRef = docker.image("${dockerImage}")
@@ -147,7 +147,7 @@ node('master') {
 	def project = readJSON file: "JenkinsEnv.json";
 
 	project.builds.each { v ->
-		branches["Build ${v.DockerTag}"] = {
+		branches["Build ${v.DockerTag}${v.ReleaseSuffix}"] = {
 			node {
 				buildStep("${v.DockerRoot}/${v.DockerImage}:${v.DockerTag}", "${v.DockerTag}", "${v.BuildParam}", "${v.ReleaseSuffix}");
 			}
